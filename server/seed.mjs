@@ -33,7 +33,14 @@ const home = (app, labels) => labels.map((label) => link(label, app));
 
 export const groups = [
   group('公告', 'noah-notice', [
-    section('公告', home('noah-notice', ['公告列表', '發布公告'])),
+    section('公告', [
+      link('營運公告', 'noah-notice', 'operations'),
+      link('活動', 'noah-notice', 'events'),
+      link('人事', 'noah-notice', 'people'),
+      link('制度', 'noah-notice', 'policy'),
+      link('公告管理', 'noah-notice', 'manage'),
+      link('公告發布', 'noah-notice', 'publish'),
+    ]),
   ]),
   group('通知', 'noah-notify', [
     section('通知', home('noah-notify', ['我的通知', '發送通知'])),
