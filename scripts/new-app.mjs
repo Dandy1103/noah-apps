@@ -151,6 +151,9 @@ function writeProject(target, project) {
     'tsconfig.app.json': tsconfigApp(),
     '.gitignore': gitignore(),
     'README.md': readme(project),
+    'Dockerfile': dockerfile(project),
+    '.dockerignore': dockerignore(),
+    'server/index.mjs': staticServer(project),
     'src/index.html': indexHtml(project),
     'src/main.ts': mainTs(),
     'src/styles.scss': styles(),
@@ -336,6 +339,81 @@ npm start
 開啟 http://localhost:${project.port}/
 
 \`main\` 是穩定版，\`develop\` 是開發分支。
+`;
+}
+
+function dockerfile(project) {
+  return `FROM node:22-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY angular.json tsconfig.json tsconfig.app.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY server ./server
+COPY --from=build /app/dist/${project.name} ./dist/${project.name}
+USER node
+CMD ["node", "server/index.mjs"]
+`;
+}
+
+function dockerignore() {
+  return `node_modules
+dist
+.git
+.angular
+.env
+.env.*
+`;
+}
+
+function staticServer(project) {
+  return `import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, join, resolve, sep } from 'node:path';
+
+const port = Number(process.env.PORT || 8080);
+const browserDir = resolve(import.meta.dirname, '..', 'dist', '${project.name}', 'browser');
+const types = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.woff2': 'font/woff2',
+};
+
+const server = createServer((request, response) => {
+  const url = new URL(request.url || '/', 'http://localhost');
+  const relative = decodeURIComponent(url.pathname).replace(/^\\/+/, '');
+  const requested = resolve(browserDir, relative);
+  const inside = requested === browserDir || requested.startsWith(\`\${browserDir}\${sep}\`);
+  const file = inside && existsSync(requested) && statSync(requested).isFile()
+    ? requested
+    : join(browserDir, 'index.html');
+  if (!existsSync(file)) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('找不到。');
+    return;
+  }
+  const isIndex = file === join(browserDir, 'index.html');
+  response.writeHead(200, {
+    'Content-Type': types[extname(file)] || 'application/octet-stream',
+    'Cache-Control': isIndex ? 'no-store' : 'public, max-age=31536000',
+  });
+  createReadStream(file).pipe(response);
+});
+
+server.listen(port, '0.0.0.0', () => {
+  console.log('${project.title}在 http://0.0.0.0:' + port);
+});
 `;
 }
 
