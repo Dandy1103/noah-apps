@@ -111,9 +111,21 @@ function requireWriter(request) {
   }
 }
 
+function canReadCatalog(origin) {
+  if (readOrigins.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    const isLocal = url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+    const isFamily = url.protocol === 'https:' && url.hostname.endsWith('.dandy-cheng.com');
+    return isLocal || isFamily;
+  } catch {
+    return false;
+  }
+}
+
 function applyCors(request, response) {
   const origin = request.headers.origin;
-  if (!origin || !readOrigins.has(origin)) return;
+  if (!origin || !canReadCatalog(origin)) return;
   response.setHeader('Access-Control-Allow-Origin', origin);
   response.setHeader('Vary', 'Origin');
   response.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');

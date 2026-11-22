@@ -22,6 +22,10 @@ export function checkSystem(system, repos = new Set()) {
   repos.add(system.repo);
   if (typeof system.url !== 'string' || system.url.length > URL_LIMIT) return '網址太長。';
   if (system.url && !isHttpUrl(system.url)) return '網址要是 http 或 https，而且不能帶帳號密碼。';
+  if (system.localUrl != null) {
+    if (typeof system.localUrl !== 'string' || system.localUrl.length > URL_LIMIT) return '本機網址太長。';
+    if (system.localUrl && !isHttpUrl(system.localUrl)) return '本機網址要是 http 或 https，而且不能帶帳號密碼。';
+  }
   const audience = text(system.audience);
   if (!audience || audience.length > NAME_LIMIT) return '誰看得到還沒填，或超過 40 個字。';
   if (typeof system.online !== 'boolean') return '上線狀態不正確。';

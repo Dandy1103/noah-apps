@@ -9,24 +9,6 @@ const appsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const parentDir = resolve(appsRoot, '..');
 const gh = 'C:\\Program Files\\GitHub CLI\\gh.exe';
 
-const groups = [
-  ['公告', [['公告', ['公告列表', '發布公告']]]],
-  ['通知', [['通知', ['我的通知', '發送通知']]]],
-  ['文件', [['文件', ['文件庫', '分類']]]],
-  ['行事曆', [['行事曆', ['公司行事曆', '活動']]]],
-  ['帳號管理', [['帳號', ['帳號列表', '帳號申請']], ['權限', ['權限設定']]]],
-  ['應用管理', [['應用', ['系統清單', '導覽']]]],
-  ['人資管理', [['人員', ['員工資料', '組織']], ['出勤', ['出勤紀錄', '加班']], ['假勤', ['請假', '出差']]]],
-  ['客戶關係', [['客戶', ['客戶資料', '聯絡人']], ['銷售', ['商機', '報價', '合約']]]],
-  ['財務會計', [['請款', ['費用報銷', '付款']], ['採購', ['採購單', '供應商']], ['庫存', ['庫存查詢']]]],
-  ['資訊服務', [['服務', ['報修', '需求單']]]],
-  ['教育訓練', [['課程', ['課程目錄', '我的課程']], ['報名', ['開課報名', '學習紀錄']]]],
-  ['簽核', [['流程', ['待我簽核', '我送出的', '表單']]]],
-  ['總務行政', [['場地', ['會議室', '訪客']], ['庶務', ['備品', '公務車', '修繕']]]],
-  ['薪資', [['薪資', ['薪資單', '投保']], ['稅務', ['所得扣繳']]]],
-  ['專案管理', [['案子', ['專案', '成員', '進度']], ['工時', ['工時填報']]]],
-];
-
 const localOnly = process.argv.includes('--local');
 const args = process.argv.slice(2).filter((arg) => arg !== '--local');
 const words = [];
@@ -59,8 +41,8 @@ const product = title;
 console.log(`建立 ${name}，畫面名稱 ${title}，port ${port}`);
 writeProject(target, { name, title, product, port });
 copyAssets(target);
-registerApp(name, title);
-await registerRemote(name, title);
+registerApp(name, title, port);
+await registerRemote(name, title, port);
 run('npm', ['install'], target);
 run('git', ['init', '-b', 'main'], target);
 run('git', ['add', '-A'], target);
@@ -103,15 +85,16 @@ function copyAssets(target) {
   copyFileSync(join(appsRoot, 'src', 'app', 'layout', 'header', 'header.component.scss'), join(target, 'src', 'app', 'layout', 'header', 'header.component.scss'));
   copyFileSync(join(appsRoot, 'src', 'app', 'layout', 'navbar', 'navbar.component.html'), join(target, 'src', 'app', 'layout', 'navbar', 'navbar.component.html'));
   copyFileSync(join(appsRoot, 'src', 'app', 'layout', 'navbar', 'navbar.component.scss'), join(target, 'src', 'app', 'layout', 'navbar', 'navbar.component.scss'));
+  copyFileSync(join(appsRoot, 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'), join(target, 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'));
   copyFileSync(join(appsRoot, 'src', 'app', 'shared', 'table', 'table.component.scss'), join(target, 'src', 'app', 'shared', 'table', 'table.component.scss'));
 }
 
-async function registerRemote(repo, label) {
+async function registerRemote(repo, label, port) {
   try {
     const response = await fetch('http://127.0.0.1:3002/api/apps/systems', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: label, repo, url: '', audience: '尚未開放', online: false }),
+      body: JSON.stringify({ name: label, repo, url: '', localUrl: `http://localhost:${port}/`, audience: '尚未開放', online: false }),
     });
     if (!response.ok) console.log('系統清單 API 沒有收下這筆，稍後可在應用管理補。');
   } catch {
@@ -119,11 +102,11 @@ async function registerRemote(repo, label) {
   }
 }
 
-function registerApp(repo, label) {
+function registerApp(repo, label, port) {
   const catalogPath = join(appsRoot, 'src', 'app', 'catalog.ts');
   const text = readFileSync(catalogPath, 'utf8');
   if (text.includes(`repo: '${repo}'`)) return;
-  const line = `  { name: '${label}', repo: '${repo}', url: '', audience: '尚未開放', online: false },\n`;
+  const line = `  { name: '${label}', repo: '${repo}', url: '', localUrl: 'http://localhost:${port}/', audience: '尚未開放', online: false },\n`;
   writeFileSync(catalogPath, text.replace(/\r?\n\];\s*$/, `\n${line}];\n`));
 }
 
@@ -473,53 +456,18 @@ function headerHtml(project) {
     <img class="site-header__logo" src="assets/images/logo.png" width="360" height="120" alt="諾亞數智">
   </a>
   <span class="site-header__product">${project.product}</span>
+  <div class="site-header__actions">
+    <a class="site-header__link" [href]="portalHomeUrl">回入口</a>
+  </div>
 </header>
 `;
 }
 
-function linkHref(project, groupLabel, sectionTitle, sections, item, index) {
-  const hrmPaths = {
-    員工資料: 'employees',
-    組織: 'organization',
-    出勤紀錄: 'attendance',
-    加班: 'overtime',
-    請假: 'leave',
-    出差: 'trip',
-  };
-  if (groupLabel === '人資管理' && hrmPaths[item]) return `this.hrm('${hrmPaths[item]}')`;
-  if (groupLabel === '應用管理' && item === '系統清單') return `this.apps('systems')`;
-  if (groupLabel === '應用管理' && item === '導覽') return `this.apps('navigation')`;
-  if (groupLabel === project.title && index === 0 && sectionTitle === sections[0][0]) return 'this.path("")';
-  return 'null';
-}
-
 function navbarTs(project) {
-  const links = groups.map(([label, sections]) => {
-    const rendered = sections.map(([sectionTitle, items]) => {
-      const renderedItems = items.map((item, index) => {
-        const href = linkHref(project, label, sectionTitle, sections, item, index);
-        return `{ label: '${item}', href: ${href} }`;
-      }).join(', ');
-      return `{ title: '${sectionTitle}', links: [${renderedItems}] }`;
-    }).join(', ');
-    return `{ label: '${label}', sections: [${rendered}] }`;
-  }).join(',\n      ');
-  return `import { Component, signal } from '@angular/core';
+  return `import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, ViewChild, inject, signal } from '@angular/core';
+import { applyNav, fallbackGroups, loadCatalog, NavGroup } from './nav-catalog';
 
-interface NavLink {
-  label: string;
-  href: string | null;
-}
-
-interface NavSection {
-  title: string;
-  links: NavLink[];
-}
-
-interface NavGroup {
-  label: string;
-  sections: NavSection[];
-}
+const SELF_REPO = '${project.name}';
 
 @Component({
   selector: 'app-navbar',
@@ -527,15 +475,75 @@ interface NavGroup {
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss',
 })
-export class NavbarComponent {
-  readonly currentLabel = '${project.title}';
+export class NavbarComponent implements AfterViewInit {
+  currentLabel = '${project.title}';
   readonly opened = signal<string | null>(null);
-  readonly groups: NavGroup[] = [
-      ${links}
-  ];
+  readonly moreOpen = signal(false);
+  readonly visibleCount = signal(20);
+  groups: NavGroup[] = fallbackGroups(SELF_REPO);
+  private observer?: ResizeObserver;
+  private readonly zone = inject(NgZone);
+
+  @ViewChild('bar') private bar?: ElementRef<HTMLElement>;
+  @ViewChild('measure') private measureRow?: ElementRef<HTMLElement>;
+  @ViewChild('more') private more?: ElementRef<HTMLElement>;
+
+  constructor() {
+    const controller = new AbortController();
+    inject(DestroyRef).onDestroy(() => {
+      controller.abort();
+      this.observer?.disconnect();
+    });
+    void loadCatalog(controller.signal).then((catalog) => {
+      if (!catalog) return;
+      this.groups = applyNav(catalog, SELF_REPO);
+      const mine = catalog.groups.find((group) => group.app === SELF_REPO);
+      const named = catalog.systems.find((system) => system.repo === mine?.app);
+      if (mine) this.currentLabel = named?.name || mine.label;
+      requestAnimationFrame(() => this.measure());
+    });
+  }
+
+  ngAfterViewInit(): void {
+    this.measure();
+    const bar = this.bar?.nativeElement;
+    if (!bar) return;
+    this.observer = new ResizeObserver(() => this.zone.run(() => this.measure()));
+    this.observer.observe(bar);
+  }
 
   open(label: string): void {
     this.opened.set(label);
+  }
+
+  openFromBar(label: string): void {
+    this.moreOpen.set(false);
+    this.opened.set(label);
+  }
+
+  toggleMore(): void {
+    this.moreOpen.update((open) => !open);
+    this.opened.set(null);
+  }
+
+  overflowCurrent(): boolean {
+    return this.groups.slice(this.visibleCount()).some((group) => group.label === this.currentLabel);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeMoreFromOutside(event: MouseEvent): void {
+    if (!this.moreOpen()) return;
+    const root = this.more?.nativeElement;
+    const target = event.target;
+    if (root && target instanceof Node && root.contains(target)) return;
+    this.moreOpen.set(false);
+    this.opened.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  closeMoreFromKeyboard(): void {
+    this.moreOpen.set(false);
+    this.hide();
   }
 
   close(event: FocusEvent): void {
@@ -549,20 +557,35 @@ export class NavbarComponent {
     this.opened.set(null);
   }
 
-  private path(section: string): string {
-    return new URL(section, document.baseURI).pathname;
-  }
-
-  private hrm(section: string): string {
-    const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-    const origin = local ? 'http://localhost:4201/' : 'https://noahhrm.dandy-cheng.com/';
-    return new URL(section, origin).toString();
-  }
-
-  private apps(section: string): string | null {
-    const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-    if (!local) return null;
-    return new URL(section, 'http://localhost:4202/').toString();
+  private measure(): void {
+    const bar = this.bar?.nativeElement;
+    const measure = this.measureRow?.nativeElement;
+    if (!bar || !measure) return;
+    const probes = Array.from(measure.querySelectorAll<HTMLElement>('[data-item]'));
+    const more = measure.querySelector<HTMLElement>('[data-more]');
+    if (!probes.length || !more) {
+      this.visibleCount.set(this.groups.length);
+      return;
+    }
+    const style = getComputedStyle(bar);
+    const available = bar.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const gap = 4;
+    const widths = probes.map((probe) => probe.offsetWidth);
+    const total = widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(widths.length - 1, 0);
+    if (total <= available) {
+      this.visibleCount.set(widths.length);
+      return;
+    }
+    const budget = available - more.offsetWidth - gap;
+    let used = 0;
+    let count = 0;
+    for (const width of widths) {
+      const next = used + width + (count > 0 ? gap : 0);
+      if (next > budget) break;
+      used = next;
+      count += 1;
+    }
+    this.visibleCount.set(count);
   }
 }
 `;

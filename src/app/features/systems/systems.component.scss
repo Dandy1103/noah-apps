@@ -144,7 +144,7 @@ select.system__status {
 
 .system__fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 200px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 1fr) 160px;
   gap: 12px;
   margin-top: 12px;
 }

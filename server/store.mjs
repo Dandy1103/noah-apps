@@ -19,7 +19,9 @@ export async function prepare() {
       await client.query('INSERT INTO apps.schema_migrations (version) VALUES ($1)', ['001']);
     }
     const existing = await client.query('SELECT COUNT(*)::int AS total FROM apps.systems');
+    await client.query(`ALTER TABLE apps.systems ADD COLUMN IF NOT EXISTS local_url text NOT NULL DEFAULT ''`);
     if (Number(existing.rows[0].total) === 0) await seed(client);
+    await fillEmptyLocalUrls(client);
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK');
@@ -31,7 +33,7 @@ export async function prepare() {
 
 export async function readCatalog() {
   const systemsResult = await pool.query(`
-    SELECT name, repo, url, audience, online
+    SELECT name, repo, url, local_url, audience, online
     FROM apps.systems
     ORDER BY sort_order, repo
   `);
@@ -70,6 +72,7 @@ export async function readCatalog() {
       name: row.name,
       repo: row.repo,
       url: row.url,
+      localUrl: row.local_url,
       audience: row.audience,
       online: row.online,
     })),
@@ -90,15 +93,16 @@ export async function replaceSystems(input) {
     for (let index = 0; index < input.length; index += 1) {
       const system = input[index];
       await client.query(`
-        INSERT INTO apps.systems (repo, name, url, audience, online, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO apps.systems (repo, name, url, local_url, audience, online, sort_order)
+        VALUES ($1, $2, $3, COALESCE($4, ''), $5, $6, $7)
         ON CONFLICT (repo) DO UPDATE SET
           name = EXCLUDED.name,
           url = EXCLUDED.url,
+          local_url = COALESCE($4, apps.systems.local_url),
           audience = EXCLUDED.audience,
           online = EXCLUDED.online,
           sort_order = EXCLUDED.sort_order
-      `, [system.repo, system.name.trim(), system.url.trim(), system.audience.trim(), system.online, index]);
+      `, [system.repo, system.name.trim(), system.url.trim(), optionalUrl(system.localUrl), system.audience.trim(), system.online, index]);
     }
     await client.query('DELETE FROM apps.systems WHERE NOT (repo = ANY($1::text[]))', [input.map((system) => system.repo)]);
     await client.query('COMMIT');
@@ -121,9 +125,13 @@ export async function addSystem(input) {
     if (found.rowCount === 0) {
       const order = await client.query('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM apps.systems');
       await client.query(`
-        INSERT INTO apps.systems (repo, name, url, audience, online, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [input.repo, input.name.trim(), input.url.trim(), input.audience.trim(), input.online, Number(order.rows[0].next)]);
+        INSERT INTO apps.systems (repo, name, url, local_url, audience, online, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [input.repo, input.name.trim(), input.url.trim(), textUrl(input.localUrl), input.audience.trim(), input.online, Number(order.rows[0].next)]);
+    } else if (textUrl(input.localUrl)) {
+      await client.query(`
+        UPDATE apps.systems SET local_url = $2 WHERE repo = $1 AND local_url = ''
+      `, [input.repo, textUrl(input.localUrl)]);
     }
     await client.query('COMMIT');
   } catch (error) {
@@ -185,6 +193,26 @@ export async function closeStore() {
 
 function blankToNull(value) {
   return value ? value : null;
+}
+
+function optionalUrl(value) {
+  return typeof value === 'string' ? value.trim() : null;
+}
+
+function textUrl(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+async function fillEmptyLocalUrls(client) {
+  const pending = await client.query(`SELECT repo FROM apps.systems WHERE local_url = ''`);
+  for (const row of pending.rows) {
+    const pkgPath = join(root, '..', '..', row.repo, 'package.json');
+    if (!existsSync(pkgPath)) continue;
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    const match = String(pkg.scripts?.start ?? '').match(/--port\s+(\d+)/);
+    if (!match) continue;
+    await client.query(`UPDATE apps.systems SET local_url = $2 WHERE repo = $1 AND local_url = ''`, [row.repo, `http://localhost:${match[1]}/`]);
+  }
 }
 
 async function seed(client) {
