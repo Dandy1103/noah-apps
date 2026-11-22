@@ -1,0 +1,127 @@
+<div class="roster-head">
+  <div class="roster-head__title">
+    <h1>導覽</h1>
+    <p>{{ groups.length }} 個群組</p>
+  </div>
+  <nav class="crumb" aria-label="麵包屑">
+    <ol>
+      <li><a [href]="portalHome">首頁</a></li>
+      <li><a href="/systems">應用管理</a></li>
+      <li aria-current="page">導覽</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="app-button" (click)="save()" [disabled]="!isReady() || isSaving()">儲存</button>
+  <button type="button" class="app-button app-button--secondary" (click)="addGroup()" [disabled]="!isReady() || isSaving()">新增群組</button>
+  <button type="button" class="app-button app-button--secondary" (click)="moveSelected(-1)" [disabled]="selectedIndex() <= 0">左移</button>
+  <button type="button" class="app-button app-button--secondary" (click)="moveSelected(1)" [disabled]="selectedIndex() < 0 || selectedIndex() === groups.length - 1">右移</button>
+  @if (status()) {
+    <p class="status">{{ status() }}</p>
+  }
+</div>
+
+<section class="order" aria-label="導覽列順序">
+  <ol>
+    @for (group of groups; track group.key; let index = $index) {
+      <li [attr.data-order-index]="index" [attr.data-flip-key]="group.key">
+        <button type="button"
+          [class.is-current]="group.key === selectedKey()"
+          [class.is-holding]="holdingGroup(index)"
+          [attr.aria-pressed]="group.key === selectedKey()"
+          (click)="selectGroup(group.key)"
+          (pointerdown)="startGroupPointer(index, $event)"
+          (pointermove)="moveGroupPointer($event)"
+          (pointerup)="stopPointer()"
+          (pointercancel)="stopPointer()">
+          {{ systemName(group.app) || '未命名' }}
+        </button>
+      </li>
+    }
+  </ol>
+</section>
+
+@if (selected(); as group) {
+  <section class="panel">
+    <div class="panel__bar">
+      <label class="editor-field">
+        <span>屬於</span>
+        <select class="bar-control" (change)="group.app = text($event); note()">
+          @if (!group.app) {
+            <option value="" selected>選擇系統</option>
+          }
+          @for (system of systems; track system.repo) {
+            <option [value]="system.repo" [selected]="group.app === system.repo">{{ system.name }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="app-button app-button--danger" (click)="removeSelected()">刪除群組</button>
+      <button type="button" class="app-button app-button--secondary" (click)="addSection(group)">新增分組</button>
+    </div>
+
+    @for (section of group.sections; track section.key; let sectionIndex = $index) {
+      <section class="section" [attr.data-section-index]="sectionIndex" [attr.data-flip-key]="section.key" [class.is-holding]="holdingSection(sectionIndex)">
+        <div class="section__head">
+          <button type="button" class="handle" aria-label="排序"
+            (pointerdown)="startSectionPointer(group, sectionIndex, $event)"
+            (pointermove)="moveSectionPointer($event)"
+            (pointerup)="stopPointer()"
+            (pointercancel)="stopPointer()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="5" cy="3.5" r="1.15" />
+              <circle cx="11" cy="3.5" r="1.15" />
+              <circle cx="5" cy="8" r="1.15" />
+              <circle cx="11" cy="8" r="1.15" />
+              <circle cx="5" cy="12.5" r="1.15" />
+              <circle cx="11" cy="12.5" r="1.15" />
+            </svg>
+          </button>
+          <input class="section__title" [value]="section.title" (input)="section.title = text($event); note()" placeholder="分組名稱" autocomplete="off" />
+          <button type="button" class="app-button app-button--danger" (click)="removeSection(group, sectionIndex)">刪除分組</button>
+        </div>
+        @if (section.links.length) {
+          <div class="section__links">
+            @for (link of section.links; track link.key; let linkIndex = $index) {
+              <div class="panel__bar" [attr.data-link-index]="linkIndex" [attr.data-section-key]="section.key" [attr.data-flip-key]="link.key" [class.is-holding]="holdingLink(linkIndex)">
+                <button type="button" class="handle" aria-label="排序"
+                  (pointerdown)="startLinkPointer(section, linkIndex, $event)"
+                  (pointermove)="moveLinkPointer($event)"
+                  (pointerup)="stopPointer()"
+                  (pointercancel)="stopPointer()">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <circle cx="5" cy="3.5" r="1.15" />
+                    <circle cx="11" cy="3.5" r="1.15" />
+                    <circle cx="5" cy="8" r="1.15" />
+                    <circle cx="11" cy="8" r="1.15" />
+                    <circle cx="5" cy="12.5" r="1.15" />
+                    <circle cx="11" cy="12.5" r="1.15" />
+                  </svg>
+                </button>
+                <label class="editor-field">
+                  <span>名稱</span>
+                  <input class="bar-control" [value]="link.label" (input)="link.label = text($event); note()" autocomplete="off" />
+                </label>
+                <label class="editor-field">
+                  <span>系統</span>
+                  <select class="bar-control" (change)="link.app = text($event); note()">
+                    <option value="" [selected]="link.app === ''">不連結</option>
+                    @for (system of systems; track system.repo) {
+                      <option [value]="system.repo" [selected]="link.app === system.repo">{{ system.name }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="editor-field">
+                  <span>路徑</span>
+                  <input class="bar-control" [value]="link.path" (input)="link.path = text($event); note()" autocomplete="off" />
+                </label>
+                <button type="button" class="app-button app-button--danger" (click)="removeLink(section, linkIndex)">刪除</button>
+              </div>
+            }
+          </div>
+        }
+        <button type="button" class="app-button app-button--secondary" (click)="addLink(section)">新增連結</button>
+      </section>
+    }
+  </section>
+}

@@ -5,7 +5,9 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4202",
-    "build": "ng build"
+    "start:api": "node server/index.mjs",
+    "build": "ng build",
+    "new-app": "node scripts/new-app.mjs"
   },
   "dependencies": {
     "@angular/common": "^17.3.0",
@@ -13,6 +15,7 @@
     "@angular/core": "^17.3.0",
     "@angular/platform-browser": "^17.3.0",
     "@angular/router": "^17.3.0",
+    "pg": "^8.23.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"

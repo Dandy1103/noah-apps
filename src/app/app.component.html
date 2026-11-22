@@ -1,5 +1,16 @@
 <app-header />
-<app-navbar />
-<main class="workspace">
-  <router-outlet />
-</main>
+<div class="app">
+  <app-navbar />
+  <div class="shell">
+    <nav class="sidenav" aria-label="應用功能">
+      <div class="sidenav__group">
+        <p>應用</p>
+        <a routerLink="/systems" routerLinkActive="is-active" ariaCurrentWhenActive="page">系統清單</a>
+        <a routerLink="/navigation" routerLinkActive="is-active" ariaCurrentWhenActive="page">導覽</a>
+      </div>
+    </nav>
+    <main class="workspace">
+      <router-outlet />
+    </main>
+  </div>
+</div>

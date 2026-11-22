@@ -1,7 +1,7 @@
 <div class="roster-head">
   <div class="roster-head__title">
     <h1>系統清單</h1>
-    <p>{{ apps.length }} 個系統</p>
+    <p>{{ systems.length }} 個系統</p>
   </div>
   <nav class="crumb" aria-label="麵包屑">
     <ol>
@@ -10,25 +10,51 @@
     </ol>
   </nav>
 </div>
-<app-table>
-  <table aria-label="系統清單">
-    <thead>
-      <tr>
-        <th scope="col">系統</th>
-        <th scope="col">倉庫</th>
-        <th scope="col">網址</th>
-        <th scope="col">狀態</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (app of apps; track app.repo) {
-        <tr>
-          <td>{{ app.name }}</td>
-          <td>{{ app.repo }}</td>
-          <td>{{ app.url || '—' }}</td>
-          <td>{{ app.online ? '上線' : '未開' }}</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-</app-table>
+<div class="toolbar">
+  @if (canEdit()) {
+    <button type="button" class="app-button" (click)="save()" [disabled]="isSaving()">儲存</button>
+  }
+  @if (status()) {
+    <p class="status">{{ status() }}</p>
+  }
+</div>
+<ul class="systems">
+  @for (app of systems; track app.repo) {
+    <li class="system" [class.is-offline]="!app.online">
+      <div class="system__head">
+        @if (canEdit()) {
+          <input class="system__name" [value]="app.name" (input)="app.name = text($event)" [attr.aria-label]="app.name || app.repo" autocomplete="off" />
+        } @else {
+          <p class="system__name system__name--text">{{ app.name }}</p>
+        }
+        <span class="system__repo">{{ app.repo }}</span>
+        @if (canEdit()) {
+          <select class="bar-control system__status" [attr.aria-label]="(app.name || app.repo) + '的狀態'" (change)="app.online = text($event) === 'true'">
+            <option value="true" [selected]="app.online">上線</option>
+            <option value="false" [selected]="!app.online">未開</option>
+          </select>
+        } @else {
+          <span class="system__status-text">{{ app.online ? '上線' : '未開' }}</span>
+        }
+      </div>
+      <div class="system__fields">
+        <label class="editor-field">
+          <span>網址</span>
+          @if (canEdit()) {
+            <input class="bar-control" [value]="app.url" (input)="app.url = text($event)" placeholder="還沒有網址" autocomplete="off" />
+          } @else {
+            <span class="editor-field__value">{{ app.url || '還沒有網址' }}</span>
+          }
+        </label>
+        <label class="editor-field">
+          <span>誰看得到</span>
+          @if (canEdit()) {
+            <input class="bar-control" [value]="app.audience" (input)="app.audience = text($event)" autocomplete="off" />
+          } @else {
+            <span class="editor-field__value">{{ app.audience }}</span>
+          }
+        </label>
+      </div>
+    </li>
+  }
+</ul>

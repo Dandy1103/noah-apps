@@ -1,17 +1,66 @@
-import { Component } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MANAGED_APPS } from '../../catalog';
-import { TableComponent } from '../../shared/table/table.component';
+import { CatalogService, ManagedSystem } from '../../catalog.service';
 
 @Component({
   selector: 'app-systems',
   standalone: true,
-  imports: [TableComponent],
   templateUrl: './systems.component.html',
   styleUrl: './systems.component.scss',
 })
 export class SystemsComponent {
-  readonly apps = MANAGED_APPS;
+  private readonly catalog = inject(CatalogService);
+  private readonly controller = new AbortController();
+
   readonly portalHome = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
     ? 'http://localhost:4200/'
     : 'https://noahportal.dandy-cheng.com/';
+  readonly status = signal('讀取中');
+  readonly canEdit = signal(false);
+  readonly isSaving = signal(false);
+  systems: ManagedSystem[] = [];
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.controller.abort());
+    void this.reload();
+  }
+
+  text(event: Event): string {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) return target.value;
+    return '';
+  }
+
+  async save(): Promise<void> {
+    this.isSaving.set(true);
+    this.status.set('');
+    try {
+      const saved = await this.catalog.saveSystems(this.systems.map((system) => ({
+        ...system,
+        name: system.name.trim(),
+        url: system.url.trim(),
+        audience: system.audience.trim(),
+      })), this.controller.signal);
+      this.systems = saved.systems;
+      this.catalog.navRevision.update((value) => value + 1);
+      this.status.set('已儲存。');
+    } catch (error) {
+      this.status.set(error instanceof Error ? error.message : '儲存失敗，請稍後再試。');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  private async reload(): Promise<void> {
+    try {
+      const catalog = await this.catalog.load(this.controller.signal);
+      this.systems = catalog.systems;
+      this.canEdit.set(true);
+      this.status.set('');
+    } catch {
+      this.systems = MANAGED_APPS.map((app) => ({ ...app }));
+      this.canEdit.set(false);
+      this.status.set('API 沒有回應，現在顯示的是專案裡的備份。');
+    }
+  }
 }
