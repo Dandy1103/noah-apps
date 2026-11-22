@@ -49,7 +49,7 @@ server.listen(port, host, () => {
 });
 
 async function route(request) {
-  const url = new URL(request.url || '/', 'http://127.0.0.1');
+  const url = requestUrl(request);
   if (request.method === 'GET' && url.pathname === '/healthz') return { status: 200, body: { ok: true } };
   if (request.method === 'GET' && url.pathname === '/api/apps/catalog') return { status: 200, body: await readCatalog() };
   if (request.method === 'PUT' && url.pathname === '/api/apps/systems') {
@@ -80,9 +80,15 @@ const fileTypes = {
   '.woff2': 'font/woff2',
 };
 
+function requestUrl(request) {
+  const raw = request.url || '/';
+  const path = raw.startsWith('//') ? `/${raw.replace(/^\/+/, '')}` : raw;
+  return new URL(path, 'http://127.0.0.1');
+}
+
 function serveBrowser(request, response) {
   if (!existsSync(browserDir)) return false;
-  const url = new URL(request.url || '/', 'http://127.0.0.1');
+  const url = requestUrl(request);
   let relative = '';
   try {
     relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
