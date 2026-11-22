@@ -45,7 +45,7 @@ export class NavbarComponent implements AfterViewInit {
   }
 
   private applyCatalog(catalog: NavCatalog): void {
-    this.groups = applyNav(catalog, 'noah-apps', '');
+    this.groups = applyNav(catalog, 'noah-apps');
     const mine = catalog.groups.find((group) => group.app === 'noah-apps');
     const named = catalog.systems.find((system) => system.repo === mine?.app);
     if (mine) this.currentLabel = named?.name || mine.label;
