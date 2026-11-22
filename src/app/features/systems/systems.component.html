@@ -1,0 +1,34 @@
+<div class="roster-head">
+  <div class="roster-head__title">
+    <h1>系統清單</h1>
+    <p>{{ apps.length }} 個系統</p>
+  </div>
+  <nav class="crumb" aria-label="麵包屑">
+    <ol>
+      <li><a [href]="portalHome">首頁</a></li>
+      <li aria-current="page">系統清單</li>
+    </ol>
+  </nav>
+</div>
+<app-table>
+  <table aria-label="系統清單">
+    <thead>
+      <tr>
+        <th scope="col">系統</th>
+        <th scope="col">倉庫</th>
+        <th scope="col">網址</th>
+        <th scope="col">狀態</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (app of apps; track app.repo) {
+        <tr>
+          <td>{{ app.name }}</td>
+          <td>{{ app.repo }}</td>
+          <td>{{ app.url || '—' }}</td>
+          <td>{{ app.online ? '上線' : '未開' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</app-table>

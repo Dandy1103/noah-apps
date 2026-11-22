@@ -1,0 +1,31 @@
+<div class="roster-head">
+  <div class="roster-head__title">
+    <h1>可見範圍</h1>
+    <p>{{ apps.length }} 個系統</p>
+  </div>
+  <nav class="crumb" aria-label="麵包屑">
+    <ol>
+      <li><a [href]="portalHome">首頁</a></li>
+      <li><a href="/systems">應用管理</a></li>
+      <li aria-current="page">可見範圍</li>
+    </ol>
+  </nav>
+</div>
+<app-table>
+  <table aria-label="可見範圍">
+    <thead>
+      <tr>
+        <th scope="col">系統</th>
+        <th scope="col">誰看得到</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (app of apps; track app.repo) {
+        <tr>
+          <td>{{ app.name }}</td>
+          <td>{{ app.audience }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</app-table>
