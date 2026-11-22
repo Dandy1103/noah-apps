@@ -160,11 +160,14 @@ function writeProject(target, project) {
     'src/app/app.config.ts': appConfig(),
     'src/app/app.routes.ts': routes(),
     'src/app/app.component.ts': appComponent(),
-    'src/app/app.component.html': '<app-header />\n<app-navbar />\n<main class="workspace">\n  <router-outlet />\n</main>\n',
-    'src/app/app.component.scss': '.workspace {\n  padding: 28px 32px 48px;\n}\n',
+    'src/app/app.component.html': appHtml(),
+    'src/app/app.component.scss': appScss(),
     'src/app/layout/header/header.component.ts': headerTs(),
     'src/app/layout/header/header.component.html': headerHtml(project),
     'src/app/layout/navbar/navbar.component.ts': navbarTs(project),
+    'src/app/layout/sidenav/sidenav.component.ts': sidenavTs(project),
+    'src/app/layout/sidenav/sidenav.component.html': sidenavHtml(),
+    'src/app/layout/sidenav/sidenav.component.scss': sidenavScss(),
     'src/app/shared/table/table.component.ts': tableTs(),
     'src/app/features/home/home.component.ts': homeTs(),
     'src/app/features/home/home.component.html': homeHtml(project),
@@ -499,15 +502,172 @@ function appComponent() {
 import { RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './layout/header/header.component';
 import { NavbarComponent } from './layout/navbar/navbar.component';
+import { SidenavComponent } from './layout/sidenav/sidenav.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, NavbarComponent],
+  imports: [RouterOutlet, HeaderComponent, NavbarComponent, SidenavComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent {}
+`;
+}
+
+function appHtml() {
+  return `<app-header />
+<div class="app">
+  <app-navbar />
+  <div class="shell">
+    <app-sidenav />
+    <main class="workspace">
+      <router-outlet />
+    </main>
+  </div>
+</div>
+`;
+}
+
+function appScss() {
+  return `.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  min-height: calc(100dvh - var(--header-height));
+}
+
+.shell {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px 48px;
+}
+
+@media (max-width: 720px) {
+  .shell {
+    flex-direction: column;
+  }
+}
+`;
+}
+
+function sidenavTs(project) {
+  return `import { Component, DestroyRef, inject } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { fallbackSide, loadCatalog, sideSections, SideSection } from '../navbar/nav-catalog';
+
+const SELF_REPO = '${project.name}';
+
+@Component({
+  selector: 'app-sidenav',
+  standalone: true,
+  imports: [RouterLink, RouterLinkActive],
+  templateUrl: './sidenav.component.html',
+  styleUrl: './sidenav.component.scss',
+})
+export class SidenavComponent {
+  sections: SideSection[] = [];
+
+  constructor() {
+    const controller = new AbortController();
+    inject(DestroyRef).onDestroy(() => controller.abort());
+    void loadCatalog(controller.signal).then((catalog) => {
+      const next = catalog ? sideSections(catalog, SELF_REPO) : [];
+      this.sections = next.length ? next : fallbackSide(SELF_REPO);
+    });
+  }
+}
+`;
+}
+
+function sidenavHtml() {
+  return `<nav class="sidenav" aria-label="功能">
+  @for (section of sections; track section.title) {
+    <div class="sidenav__group">
+      <p>{{ section.title }}</p>
+      @for (link of section.links; track link.label) {
+        <a [routerLink]="link.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">{{ link.label }}</a>
+      }
+    </div>
+  }
+</nav>
+`;
+}
+
+function sidenavScss() {
+  return `:host {
+  display: contents;
+}
+
+.sidenav {
+  width: 196px;
+  flex-shrink: 0;
+  padding: 20px 12px 32px;
+  border-right: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.sidenav__group p {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sidenav a {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 16px;
+  line-height: 40px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.sidenav a:hover {
+  background: rgb(15 23 42 / 5%);
+}
+
+.sidenav a.is-active,
+.sidenav a.is-active:hover {
+  background: var(--color-surface-selected);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+
+@media (max-width: 720px) {
+  .sidenav {
+    display: flex;
+    width: auto;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sidenav__group {
+    flex: 0 0 auto;
+  }
+
+  .sidenav a {
+    width: auto;
+    white-space: nowrap;
+  }
+}
 `;
 }
 
@@ -554,11 +714,11 @@ const SELF_REPO = '${project.name}';
   styleUrl: './navbar.component.scss',
 })
 export class NavbarComponent implements AfterViewInit {
-  currentLabel = '${project.title}';
+  currentLabel = '';
   readonly opened = signal<string | null>(null);
   readonly moreOpen = signal(false);
   readonly visibleCount = signal(20);
-  groups: NavGroup[] = fallbackGroups(SELF_REPO);
+  groups: NavGroup[] = [];
   private observer?: ResizeObserver;
   private readonly zone = inject(NgZone);
 
@@ -573,7 +733,12 @@ export class NavbarComponent implements AfterViewInit {
       this.observer?.disconnect();
     });
     void loadCatalog(controller.signal).then((catalog) => {
-      if (!catalog) return;
+      if (!catalog) {
+        this.groups = fallbackGroups(SELF_REPO);
+        this.currentLabel = '${project.title}';
+        requestAnimationFrame(() => this.measure());
+        return;
+      }
       this.groups = applyNav(catalog, SELF_REPO);
       const mine = catalog.groups.find((group) => group.app === SELF_REPO);
       const named = catalog.systems.find((system) => system.repo === mine?.app);

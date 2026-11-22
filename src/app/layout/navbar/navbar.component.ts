@@ -9,11 +9,11 @@ import { applyNav, fallbackGroups, loadCatalog, NavCatalog, NavGroup } from './n
   styleUrl: './navbar.component.scss',
 })
 export class NavbarComponent implements AfterViewInit {
-  currentLabel = '應用管理';
+  currentLabel = '';
   readonly opened = signal<string | null>(null);
   readonly moreOpen = signal(false);
   readonly visibleCount = signal(20);
-  groups: NavGroup[] = fallbackGroups('noah-apps');
+  groups: NavGroup[] = [];
   private savedCatalog: NavCatalog | null = null;
   private observer?: ResizeObserver;
   private readonly zone = inject(NgZone);
@@ -37,7 +37,15 @@ export class NavbarComponent implements AfterViewInit {
         return;
       }
       void loadCatalog(controller.signal).then((catalog) => {
-        if (!catalog || catalogs.preview()) return;
+        if (catalogs.preview()) return;
+        if (!catalog) {
+          if (!this.savedCatalog) {
+            this.groups = fallbackGroups('noah-apps');
+            this.currentLabel = '應用管理';
+            requestAnimationFrame(() => this.measure());
+          }
+          return;
+        }
         this.savedCatalog = catalog;
         this.applyCatalog(catalog);
       });
