@@ -1,18 +1,7 @@
-<div class="roster-head">
-  <div class="roster-head__title">
-    <h1>系統清單</h1>
-    <p>{{ systems.length }} 個系統</p>
-  </div>
-  <nav class="crumb" aria-label="麵包屑">
-    <ol>
-      <li><a [href]="portalHome">首頁</a></li>
-      <li aria-current="page">系統清單</li>
-    </ol>
-  </nav>
-</div>
+<noah-page-heading title="系統清單" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '系統清單' }]" />
 <div class="toolbar">
   @if (canEdit()) {
-    <button type="button" class="app-button" (click)="save()" [disabled]="isSaving()">儲存</button>
+    <noah-button message="儲存" (click)="save()" [disabled]="!canEdit() || isSaving()" />
   }
   @if (status()) {
     <p class="status">{{ status() }}</p>
@@ -23,7 +12,7 @@
     <li class="system" [class.is-offline]="!app.online">
       <div class="system__head">
         @if (canEdit()) {
-          <input class="system__name" [value]="app.name" (input)="app.name = text($event)" [attr.aria-label]="app.name || app.repo" autocomplete="off" />
+          <input noahInput class="system__name" [value]="app.name" (input)="app.name = text($event)" [attr.aria-label]="app.name || app.repo" autocomplete="off" />
         } @else {
           <p class="system__name system__name--text">{{ app.name }}</p>
         }
@@ -41,7 +30,7 @@
         <label class="editor-field">
           <span>網址</span>
           @if (canEdit()) {
-            <input class="bar-control" [value]="app.url" (input)="app.url = text($event)" placeholder="還沒有網址" autocomplete="off" />
+            <input noahInput class="bar-control" [value]="app.url" (input)="app.url = text($event)" placeholder="還沒有網址" autocomplete="off" />
           } @else {
             <span class="editor-field__value">{{ app.url || '還沒有網址' }}</span>
           }
@@ -49,7 +38,7 @@
         <label class="editor-field">
           <span>本機網址</span>
           @if (canEdit()) {
-            <input class="bar-control" [value]="app.localUrl || ''" (input)="app.localUrl = text($event)" placeholder="本機還沒有" autocomplete="off" />
+            <input noahInput class="bar-control" [value]="app.localUrl || ''" (input)="app.localUrl = text($event)" placeholder="本機還沒有" autocomplete="off" />
           } @else {
             <span class="editor-field__value">{{ app.localUrl || '本機還沒有' }}</span>
           }
@@ -57,7 +46,7 @@
         <label class="editor-field">
           <span>誰看得到</span>
           @if (canEdit()) {
-            <input class="bar-control" [value]="app.audience" (input)="app.audience = text($event)" autocomplete="off" />
+            <input noahInput class="bar-control" [value]="app.audience" (input)="app.audience = text($event)" autocomplete="off" />
           } @else {
             <span class="editor-field__value">{{ app.audience }}</span>
           }

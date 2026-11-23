@@ -1,71 +1,52 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { extname, join, resolve, sep } from 'node:path';
-import { addSystem, closeStore, prepare, readCatalog, replaceNav, replaceSystems } from './store.mjs';
 
 const port = Number(process.env.PORT || process.env.APPS_PORT || 3002);
 const host = process.env.PORT ? '0.0.0.0' : '127.0.0.1';
 const browserDir = resolve(import.meta.dirname, '..', 'dist', 'noah-apps', 'browser');
-const writeOrigins = new Set([
-  'http://localhost:4202',
-  'http://127.0.0.1:4202',
-  'https://noahapps.dandy-cheng.com',
-]);
-const readOrigins = new Set([
-  ...writeOrigins,
-  'http://localhost:4200',
-  'http://127.0.0.1:4200',
-  'http://localhost:4201',
-  'http://127.0.0.1:4201',
-  'https://noahportal.dandy-cheng.com',
-  'https://noahhrm.dandy-cheng.com',
-]);
+const core = new URL(process.env.CORE_URL || 'http://127.0.0.1:8080');
+if (!['http:', 'https:'].includes(core.protocol)) throw new Error('CORE_URL 須使用 http 或 https。');
+const requestCore = core.protocol === 'https:' ? httpsRequest : httpRequest;
 
-const server = createServer(async (request, response) => {
-  applyCors(request, response);
-  if (request.method === 'OPTIONS') {
-    response.writeHead(204);
-    response.end();
+const server = createServer((request, response) => {
+  const url = requestUrl(request);
+  if (request.method === 'GET' && url.pathname === '/healthz') {
+    forward(request, response, '/api/apps/healthz');
     return;
   }
-  try {
-    const result = await route(request);
-    if (result) {
-      send(response, result.status, result.body);
-      return;
-    }
-    if (request.method === 'GET' && serveBrowser(request, response)) return;
-    send(response, 404, { message: '找不到。' });
-  } catch (error) {
-    const status = error.status || 500;
-    if (status === 500) console.error(error);
-    send(response, status, { message: status === 500 ? '系統清單暫時讀不到。' : error.message });
+  if (url.pathname.startsWith('/api/apps/')) {
+    forward(request, response, url.pathname + url.search);
+    return;
   }
+  if (!url.pathname.startsWith('/api/') && request.method === 'GET' && serveBrowser(request, response)) return;
+  send(response, 404, { message: '找不到。' });
 });
 
-await prepare();
 server.listen(port, host, () => {
-  console.log(`導覽 API 在 http://${host}:${port}`);
+  console.log('應用管理在 http://' + host + ':' + port);
 });
 
-async function route(request) {
-  const url = requestUrl(request);
-  if (request.method === 'GET' && url.pathname === '/healthz') return { status: 200, body: { ok: true } };
-  if (request.method === 'GET' && url.pathname === '/api/apps/catalog') return { status: 200, body: await readCatalog() };
-  if (request.method === 'PUT' && url.pathname === '/api/apps/systems') {
-    requireWriter(request);
-    return { status: 200, body: await replaceSystems(await readJson(request)) };
-  }
-  if (request.method === 'POST' && url.pathname === '/api/apps/systems') {
-    requireWriter(request);
-    return { status: 200, body: await addSystem(await readJson(request)) };
-  }
-  if (request.method === 'PUT' && url.pathname === '/api/apps/nav') {
-    requireWriter(request);
-    return { status: 200, body: await replaceNav(await readJson(request)) };
-  }
-  if (url.pathname.startsWith('/api/')) return { status: 404, body: { message: '找不到。' } };
-  return null;
+function forward(request, response, path) {
+  const headers = { ...request.headers, host: core.host };
+  delete headers.connection;
+  delete headers.cookie;
+  delete headers.authorization;
+  const upstream = requestCore(core, { method: request.method, path, headers, timeout: 15000 }, result => {
+    const headers = { ...result.headers };
+    delete headers.connection;
+    response.writeHead(result.statusCode, headers);
+    result.on('error', () => response.destroy());
+    result.pipe(response);
+  });
+  upstream.on('timeout', () => upstream.destroy());
+  upstream.on('error', () => {
+    if (response.headersSent) response.destroy();
+    else send(response, 502, { message: '應用管理暫時無法連線，請稍後再試。' });
+  });
+  response.on('close', () => upstream.destroy());
+  request.pipe(upstream);
 }
 
 const fileTypes = {
@@ -107,37 +88,6 @@ function serveBrowser(request, response) {
   return true;
 }
 
-function requireWriter(request) {
-  const origin = request.headers.origin;
-  if (!origin) return;
-  if (!writeOrigins.has(origin)) {
-    const error = new Error('只能從應用管理儲存。');
-    error.status = 403;
-    throw error;
-  }
-}
-
-function canReadCatalog(origin) {
-  if (readOrigins.has(origin)) return true;
-  try {
-    const url = new URL(origin);
-    const isLocal = url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
-    const isFamily = url.protocol === 'https:' && url.hostname.endsWith('.dandy-cheng.com');
-    return isLocal || isFamily;
-  } catch {
-    return false;
-  }
-}
-
-function applyCors(request, response) {
-  const origin = request.headers.origin;
-  if (!origin || !canReadCatalog(origin)) return;
-  response.setHeader('Access-Control-Allow-Origin', origin);
-  response.setHeader('Vary', 'Origin');
-  response.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
 function send(response, status, body) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -145,30 +95,3 @@ function send(response, status, body) {
   });
   response.end(JSON.stringify(body));
 }
-
-async function readJson(request) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > 1_000_000) {
-      const error = new Error('內容太大。');
-      error.status = 413;
-      throw error;
-    }
-    chunks.push(chunk);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    const error = new Error('格式不對。');
-    error.status = 400;
-    throw error;
-  }
-}
-
-process.on('SIGINT', async () => {
-  server.close();
-  await closeStore();
-  process.exit(0);
-});

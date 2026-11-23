@@ -93,7 +93,11 @@ async function registerRemote(repo, label, port) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: label, repo, url: '', localUrl: `http://localhost:${port}/`, audience: '尚未開放', online: false }),
     });
-    if (!response.ok) console.log('系統清單 API 沒有收下這筆，稍後可在應用管理補。');
+    if (response.status === 401 || response.status === 403) {
+      console.log('請用管理員帳號登入應用管理，將新系統加入清單。');
+    } else if (!response.ok) {
+      console.log('系統清單 API 沒有收下這筆，稍後可在應用管理補。');
+    }
   } catch {
     console.log('系統清單 API 沒開，這次只寫進本機備份。');
   }

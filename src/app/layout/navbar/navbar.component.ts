@@ -1,13 +1,40 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { NoahNavbarComponent } from '@dandy1103/ui';
+import { applyNav, fallbackGroups, NavCatalog } from './nav-catalog';
 import { CatalogService } from '../../catalog.service';
+
+const repo = 'noah-apps';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
   imports: [NoahNavbarComponent],
-  template: `<noah-navbar repo="noah-apps" fallbackLabel="應用管理" [preview]="catalogs.preview()" [revision]="catalogs.navRevision()" />`,
+  template: "<noah-navbar [groups]=\"groups()\" [currentLabel]=\"currentLabel()\" />",
 })
 export class NavbarComponent {
-  readonly catalogs = inject(CatalogService);
+  private readonly catalogs = inject(CatalogService);
+  private readonly catalog = signal<NavCatalog | null>(null);
+
+  constructor() {
+    effect((onCleanup) => {
+      this.catalogs.navRevision();
+      const request = new AbortController();
+      onCleanup(() => request.abort());
+      void this.catalogs.load(request.signal).then(value => {
+        if (!request.signal.aborted) this.catalog.set(value);
+      }).catch(() => {});
+    });
+  }
+
+  readonly groups = computed(() => {
+    const catalog = this.catalog();
+    const preview = this.catalogs.preview();
+    return catalog ? applyNav({ ...catalog, groups: preview ?? catalog.groups }, repo) : fallbackGroups(repo);
+  });
+
+  readonly currentLabel = computed(() => {
+    const catalog = this.catalog();
+    const group = catalog?.groups.find(value => value.app === repo);
+    return catalog?.systems.find(value => value.repo === repo)?.name?.trim() || group?.label || '應用管理';
+  });
 }

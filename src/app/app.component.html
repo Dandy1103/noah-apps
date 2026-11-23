@@ -1,16 +1,28 @@
 <app-header />
 <div class="app">
   <app-navbar />
+  @if (session.state() === 'ready') {
   <div class="shell">
-    <nav class="sidenav" aria-label="應用功能">
-      <div class="sidenav__group">
-        <p>應用</p>
-        <a routerLink="/systems" routerLinkActive="is-active" ariaCurrentWhenActive="page">系統清單</a>
-        <a routerLink="/navigation" routerLinkActive="is-active" ariaCurrentWhenActive="page">導覽</a>
-      </div>
-    </nav>
+    <noah-sidebar [sections]="sections" />
     <main class="workspace">
       <router-outlet />
     </main>
   </div>
+  } @else if (session.state() === 'login') {
+    <dialog #signInDialog class="sign-in-dialog" aria-labelledby="sign-in-title" (cancel)="$event.preventDefault()">
+      <h1 id="sign-in-title">登入逾時請重新登入</h1>
+      <a class="sign-in-action" [href]="session.signInUrl(router.url)" autofocus>重新登入</a>
+    </dialog>
+  } @else {
+    <main class="workspace">
+      @switch (session.state()) {
+        @case ('loading') { <p role="status">正在確認登入狀態…</p> }
+        @case ('forbidden') { <p role="alert">你的帳號沒有應用管理權限。請聯絡管理員確認。</p> }
+        @case ('error') {
+          <p role="alert">應用管理載入失敗。</p>
+          <button type="button" class="app-button" (click)="session.load()">重新載入</button>
+        }
+      }
+    </main>
+  }
 </div>

@@ -1,19 +1,7 @@
-<div class="roster-head">
-  <div class="roster-head__title">
-    <h1>導覽</h1>
-    <p>{{ groups.length }} 個群組</p>
-  </div>
-  <nav class="crumb" aria-label="麵包屑">
-    <ol>
-      <li><a [href]="portalHome">首頁</a></li>
-      <li><a href="/systems">應用管理</a></li>
-      <li aria-current="page">導覽</li>
-    </ol>
-  </nav>
-</div>
+<noah-page-heading title="導覽" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '導覽' }]" />
 
 <div class="toolbar">
-  <button type="button" class="app-button" (click)="save()" [disabled]="!isReady() || isSaving()">儲存</button>
+  <noah-button message="儲存" (click)="save()" [disabled]="!isReady() || isSaving()" />
   <button type="button" class="app-button app-button--secondary" (click)="addGroup()" [disabled]="!isReady() || isSaving()">新增群組</button>
   <button type="button" class="app-button app-button--secondary" (click)="moveSelected(-1)" [disabled]="selectedIndex() <= 0">左移</button>
   <button type="button" class="app-button app-button--secondary" (click)="moveSelected(1)" [disabled]="selectedIndex() < 0 || selectedIndex() === groups.length - 1">右移</button>
@@ -77,7 +65,7 @@
               <circle cx="11" cy="12.5" r="1.15" />
             </svg>
           </button>
-          <input class="section__title" [value]="section.title" (input)="section.title = text($event); note()" placeholder="分組名稱" autocomplete="off" />
+          <input noahInput class="section__title" [value]="section.title" (input)="section.title = text($event); note()" placeholder="分組名稱" autocomplete="off" />
           <button type="button" class="app-button app-button--danger" (click)="removeSection(group, sectionIndex)">刪除分組</button>
         </div>
         @if (section.links.length) {
@@ -100,7 +88,7 @@
                 </button>
                 <label class="editor-field">
                   <span>名稱</span>
-                  <input class="bar-control" [value]="link.label" (input)="link.label = text($event); note()" autocomplete="off" />
+                  <input noahInput class="bar-control" [value]="link.label" (input)="link.label = text($event); note()" autocomplete="off" />
                 </label>
                 <label class="editor-field">
                   <span>系統</span>
@@ -113,7 +101,7 @@
                 </label>
                 <label class="editor-field">
                   <span>路徑</span>
-                  <input class="bar-control" [value]="link.path" (input)="link.path = text($event); note()" autocomplete="off" />
+                  <input noahInput class="bar-control" [value]="link.path" (input)="link.path = text($event); note()" autocomplete="off" />
                 </label>
                 <button type="button" class="app-button app-button--danger" (click)="removeLink(section, linkIndex)">刪除</button>
               </div>

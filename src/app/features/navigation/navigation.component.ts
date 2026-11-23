@@ -1,3 +1,4 @@
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective } from '@dandy1103/ui';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { CatalogService, ManagedSystem, NavGroupRecord } from '../../catalog.service';
 
@@ -29,6 +30,7 @@ type PointerDrag =
 @Component({
   selector: 'app-navigation',
   standalone: true,
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective],
   templateUrl: './navigation.component.html',
   styleUrl: './navigation.component.scss',
 })

@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { AppsSessionService, catalogOrigin } from './apps-session.service';
 
 export interface ManagedSystem {
   name: string;
@@ -35,9 +36,7 @@ export interface AppCatalog {
 export class CatalogService {
   readonly preview = signal<NavGroupRecord[] | null>(null);
   readonly navRevision = signal(0);
-  private readonly base = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-    ? 'http://localhost:3002'
-    : '';
+  private readonly session = inject(AppsSessionService);
 
   load(signal?: AbortSignal): Promise<AppCatalog> {
     return this.request('/api/apps/catalog', { method: 'GET', signal });
@@ -52,10 +51,9 @@ export class CatalogService {
   }
 
   private async request(path: string, init: RequestInit): Promise<AppCatalog> {
-    const response = await fetch(`${this.base}${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = init.method === 'GET'
+      ? await fetch(`${catalogOrigin}${path}`, init)
+      : await this.session.write(path, init);
     if (!response.ok) throw new Error(await readMessage(response));
     return response.json() as Promise<AppCatalog>;
   }

@@ -1,3 +1,4 @@
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective } from '@dandy1103/ui';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MANAGED_APPS } from '../../catalog';
 import { CatalogService, ManagedSystem } from '../../catalog.service';
@@ -5,6 +6,7 @@ import { CatalogService, ManagedSystem } from '../../catalog.service';
 @Component({
   selector: 'app-systems',
   standalone: true,
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective],
   templateUrl: './systems.component.html',
   styleUrl: './systems.component.scss',
 })
