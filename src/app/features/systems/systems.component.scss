@@ -11,7 +11,7 @@
   align-items: center;
   gap: 12px;
   padding-left: 12px;
-  border-left: 3px solid #001430;
+  border-left: 3px solid var(--color-primary);
 }
 
 .roster-head__title h1,
@@ -84,7 +84,7 @@
 .system {
   padding: 12px 16px 16px;
   border: 1px solid #e2e8f0;
-  border-left: 3px solid #001430;
+  border-left: 3px solid var(--color-primary);
   border-radius: 8px;
   background: #fff;
 }
@@ -114,7 +114,7 @@
 }
 
 .system__name:focus {
-  border-bottom-color: #001430;
+  border-bottom-color: var(--color-primary);
   outline: none;
 }
 
@@ -179,7 +179,7 @@ select.system__status {
 }
 
 .bar-control:focus {
-  border-color: #001430;
+  border-color: var(--color-primary);
   outline: none;
 }
 
@@ -204,7 +204,7 @@ select.bar-control {
   padding: 0 16px;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: #001430;
+  background: var(--color-primary);
   color: #fff;
   font: inherit;
   font-size: 16px;

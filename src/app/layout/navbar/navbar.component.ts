@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { NoahNavbarComponent } from '@dandy1103/navbar';
+import { NoahNavbarComponent } from '@dandy1103/ui';
 import { CatalogService } from '../../catalog.service';
 
 @Component({
