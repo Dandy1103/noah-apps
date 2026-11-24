@@ -44,7 +44,8 @@ export class AppsSessionService {
   }
 
   signInUrl(path: string): string {
-    const section = path.split(/[?#]/, 1)[0] === '/navigation' ? 'navigation' : 'systems';
+    const pathname = path.split(/[?#]/, 1)[0].replace(/^\/apps(?=\/|$)/, '');
+    const section = pathname === '/navigation' ? 'navigation' : 'systems';
     return `${this.authOrigin}/api/apps/login?section=${section}`;
   }
 
