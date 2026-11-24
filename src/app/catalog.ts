@@ -7,7 +7,7 @@ export interface ManagedApp {
 }
 
 export const MANAGED_APPS: ManagedApp[] = [
-  { name: '入口', repo: 'noah-portal', url: 'https://noahportal.dandy-cheng.com/', audience: '全員', online: true },
+  { name: '入口', repo: 'noah-portal', url: 'https://noah-platform.dandy-cheng.com/portal/', audience: '全員', online: true },
   { name: '人資管理', repo: 'noah-hrm', url: 'https://noahhrm.dandy-cheng.com/', audience: '人資', online: true },
   { name: '公告', repo: 'noah-notice', url: '', audience: '尚未開放', online: false },
   { name: '通知', repo: 'noah-notify', url: '', audience: '尚未開放', online: false },

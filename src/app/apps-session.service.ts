@@ -1,7 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 
 const localHosts = ['localhost', '127.0.0.1', '[::1]'];
-export const catalogOrigin = localHosts.includes(location.hostname) ? 'http://localhost:3002' : '';
+export const catalogOrigin = localHosts.includes(location.hostname)
+  ? 'http://localhost:3002'
+  : location.hostname === 'noah-platform.dandy-cheng.com'
+    ? ''
+    : 'https://noah-platform.dandy-cheng.com';
 
 @Injectable({ providedIn: 'root' })
 export class AppsSessionService {

@@ -2,6 +2,7 @@ import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective } fro
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MANAGED_APPS } from '../../catalog';
 import { CatalogService, ManagedSystem } from '../../catalog.service';
+import { portalEntry } from '../../layout/navbar/nav-catalog';
 
 @Component({
   selector: 'app-systems',
@@ -14,9 +15,9 @@ export class SystemsComponent {
   private readonly catalog = inject(CatalogService);
   private readonly controller = new AbortController();
 
-  readonly portalHome = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-    ? 'http://localhost:4200/'
-    : 'https://noahportal.dandy-cheng.com/';
+  get portalHome(): string {
+    return portalEntry(this.systems.length ? { systems: this.systems } : null);
+  }
   readonly status = signal('讀取中');
   readonly canEdit = signal(false);
   readonly isSaving = signal(false);

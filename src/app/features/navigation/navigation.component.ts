@@ -1,6 +1,7 @@
 import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective } from '@dandy1103/ui';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { CatalogService, ManagedSystem, NavGroupRecord } from '../../catalog.service';
+import { portalEntry } from '../../layout/navbar/nav-catalog';
 
 interface DraftLink {
   key: number;
@@ -42,9 +43,9 @@ export class NavigationComponent {
   private ignoreClick = false;
   private readonly motions = new Map<string, Animation>();
 
-  readonly portalHome = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-    ? 'http://localhost:4200/'
-    : 'https://noahportal.dandy-cheng.com/';
+  get portalHome(): string {
+    return portalEntry(this.systems.length ? { systems: this.systems } : null);
+  }
   readonly status = signal('讀取中');
   readonly isSaving = signal(false);
   readonly isReady = signal(false);
