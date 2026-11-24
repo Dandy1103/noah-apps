@@ -23,7 +23,7 @@
 }
 
 .roster-head__title p {
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 
 .crumb {
@@ -76,9 +76,9 @@
 .order {
   margin-bottom: 16px;
   padding: 12px 12px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface-raised);
 }
 
 .order ol {
@@ -95,7 +95,7 @@
   padding: 0 16px;
   border: 0;
   background: transparent;
-  color: #0f172a;
+  color: var(--color-text-primary);
   font: inherit;
   font-size: 16px;
   font-weight: 600;
@@ -115,7 +115,7 @@
 }
 
 .order button.is-holding {
-  background: #edf2f8;
+  background: var(--color-surface-selected);
   cursor: grabbing;
 }
 
@@ -126,42 +126,42 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
-  color: #64748b;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
   touch-action: none;
   cursor: grab;
 }
 
 .panel__bar.is-holding {
-  background: #edf2f8;
+  background: var(--color-surface-selected);
 }
 
 .status {
   margin: 0;
-  color: #64748b;
+  color: var(--color-text-secondary);
 }
 
 .panel {
   margin: 0 0 16px;
   padding: 20px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface-raised);
 }
 
 .section {
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border-strong);
   border-left: 3px solid var(--color-primary);
   border-radius: 4px;
-  background: #f8fafc;
+  background: var(--color-surface-subtle);
 }
 
 .section.is-holding {
-  background: #e8eef4;
+  background: var(--color-surface-muted);
 }
 
 .section__head {
@@ -178,7 +178,7 @@
   border: 0;
   border-bottom: 2px solid var(--color-primary);
   background: transparent;
-  color: #0f172a;
+  color: var(--color-text-primary);
   font: inherit;
   font-size: 16px;
   font-weight: 600;
@@ -187,9 +187,9 @@
 .section__links {
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--color-surface-raised);
 }
 
 .section > .app-button {
@@ -204,7 +204,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-size: 16px;
 }
 
@@ -212,10 +212,10 @@
   height: 40px;
   min-width: 180px;
   padding: 0 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
   font: inherit;
   font-size: 16px;
 }
@@ -238,7 +238,7 @@ select.bar-control {
   border: 1px solid transparent;
   border-radius: 4px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-surface-raised);
   font: inherit;
   font-size: 16px;
   line-height: 1;
@@ -247,14 +247,14 @@ select.bar-control {
 }
 
 .app-button--secondary {
-  background: #fff;
+  background: var(--color-surface-raised);
   color: var(--color-primary);
-  border-color: #e2e8f0;
+  border-color: var(--color-border);
 }
 
 .app-button--danger {
-  background: #dc2626;
-  color: #fff;
+  background: var(--color-danger);
+  color: var(--color-surface-raised);
 }
 
 .app-button:disabled {
