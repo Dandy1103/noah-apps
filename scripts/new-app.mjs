@@ -72,7 +72,7 @@ function nextPort() {
     if (!existsSync(pkgPath)) continue;
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
     const start = pkg.scripts?.start ?? '';
-    const match = start.match(/--port\s+(\d+)/);
+    const match = start.match(/--port\s+(\d+)/) || start.match(/dev\.mjs\s+\S+\s+(\d+)/);
     if (match) max = Math.max(max, Number(match[1]));
   }
   return max + 1;
@@ -82,7 +82,6 @@ function copyAssets(target) {
   mkdirSync(join(target, 'src', 'assets', 'images'), { recursive: true });
   copyFileSync(join(appsRoot, 'src', 'favicon.ico'), join(target, 'src', 'favicon.ico'));
   copyFileSync(join(appsRoot, 'src', 'assets', 'images', 'logo.png'), join(target, 'src', 'assets', 'images', 'logo.png'));
-  copyFileSync(join(parentDir, 'noah-notice', 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'), join(target, 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'));
 }
 
 async function registerRemote(repo, label, port) {
@@ -163,11 +162,6 @@ function writeProject(target, project) {
     'src/app/app.routes.ts': routes(),
     'src/app/app.component.ts': appComponent(),
     'src/app/app.component.html': appHtml(),
-    'src/app/layout/header/header.component.ts': headerTs(),
-    'src/app/layout/header/header.component.html': headerHtml(project),
-    'src/app/layout/navbar/navbar.component.ts': navbarTs(project),
-    'src/app/layout/sidenav/sidenav.component.ts': sidenavTs(project),
-    'src/app/layout/sidenav/sidenav.component.html': sidenavHtml(),
     'src/app/shared/table/table.component.ts': tableTs(),
     'src/app/features/home/home.component.ts': homeTs(),
     'src/app/features/home/home.component.html': homeHtml(project),
@@ -551,116 +545,38 @@ export const routes: Routes = [
 }
 
 function appComponent() {
-  return `import { Component } from '@angular/core';
+  return `import { Component, signal } from '@angular/core';
+import { NoahLoadingMaskComponent } from '@dandy1103/ui';
 import { RouterOutlet } from '@angular/router';
-import { HeaderComponent } from './layout/header/header.component';
-import { NavbarComponent } from './layout/navbar/navbar.component';
-import { SidenavComponent } from './layout/sidenav/sidenav.component';
+import { signedIn } from './require-session';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, NavbarComponent, SidenavComponent],
+  imports: [RouterOutlet, NoahLoadingMaskComponent],
   templateUrl: './app.component.html',
 })
-export class AppComponent {}
+export class AppComponent {
+  readonly shellReady = signal(false);
+
+  constructor() {
+    void this.open();
+  }
+
+  private async open(): Promise<void> {
+    if (!await signedIn()) return;
+    this.shellReady.set(true);
+  }
+}
 `;
 }
 
 function appHtml() {
-  return `<app-header />
-<div class="app">
-  <app-navbar />
-  <div class="shell">
-    <app-sidenav />
-    <main class="workspace">
-      <router-outlet />
-    </main>
-  </div>
-</div>
-`;
+  return `@if (shellReady()) {
+  <router-outlet />
+} @else {
+  <noah-loading-mask />
 }
-
-function sidenavTs(project) {
-  return `import { Component, DestroyRef, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
-import { fallbackSide, loadCatalog, sideSections, SideSection } from '../navbar/nav-catalog';
-
-const SELF_REPO = '${project.name}';
-
-@Component({
-  selector: 'app-sidenav',
-  standalone: true,
-  imports: [RouterLink, RouterLinkActive],
-  templateUrl: './sidenav.component.html',
-})
-export class SidenavComponent {
-  sections: SideSection[] = [];
-
-  constructor() {
-    const controller = new AbortController();
-    inject(DestroyRef).onDestroy(() => controller.abort());
-    void loadCatalog(controller.signal).then((catalog) => {
-      const next = catalog ? sideSections(catalog, SELF_REPO) : [];
-      this.sections = next.length ? next : fallbackSide(SELF_REPO);
-    });
-  }
-}
-`;
-}
-
-function sidenavHtml() {
-  return `<nav class="sidenav" aria-label="功能">
-  @for (section of sections; track section.title) {
-    <div class="sidenav__group">
-      <p>{{ section.title }}</p>
-      @for (link of section.links; track link.label) {
-        <a [routerLink]="link.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">{{ link.label }}</a>
-      }
-    </div>
-  }
-</nav>
-`;
-}
-
-function headerTs() {
-  return `import { Component } from '@angular/core';
-import { NoahHeaderComponent } from '@dandy1103/header';
-
-@Component({
-  selector: 'app-header',
-  standalone: true,
-  imports: [NoahHeaderComponent],
-  templateUrl: './header.component.html',
-})
-export class HeaderComponent {
-  readonly portalHomeUrl = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-    ? 'http://localhost:4200/'
-    : 'https://noahportal.dandy-cheng.com/';
-}
-`;
-}
-
-function headerHtml(project) {
-  return `<noah-header
-  productName="${project.product}"
-  homeLabel="回入口"
-  [homeHref]="portalHomeUrl">
-</noah-header>
-`;
-}
-
-function navbarTs(project) {
-  return `import { Component } from '@angular/core';
-import { NoahNavbarComponent } from '@dandy1103/navbar';
-
-@Component({
-  selector: 'app-navbar',
-  standalone: true,
-  imports: [NoahNavbarComponent],
-  template: \`<noah-navbar repo="${project.name}" fallbackLabel="${project.title}" />\`,
-})
-export class NavbarComponent {}
 `;
 }
 

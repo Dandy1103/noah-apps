@@ -13,7 +13,7 @@ npm install
 npm start
 ```
 
-畫面在 http://localhost:4202/。本機的 http://127.0.0.1:3002 由 Core 提供，沿用原有 API 路徑。導覽和系統清單存在 PostgreSQL 的 `apps` schema。
+畫面在 http://localhost:4200/apps/。本機的 http://127.0.0.1:3002 由 Core 提供，沿用原有 API 路徑。導覽和系統清單存在 PostgreSQL 的 `apps` schema。
 
 登入沿用公告的 Keycloak 回呼。只有 HRM 的在職 `admin` 可以進入應用管理及儲存設定，各系統的導覽列可照常讀取目錄。
 
