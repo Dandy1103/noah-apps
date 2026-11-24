@@ -1,7 +1,8 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { NoahHeaderAction, NoahHeaderComponent } from '@dandy1103/ui';
 import { AppsSessionService } from '../../apps-session.service';
-import { loadCatalog, NavCatalog, portalEntry } from '../navbar/nav-catalog';
+import { AppCatalog, CatalogService } from '../../catalog.service';
+import { portalEntry } from '../navbar/nav-catalog';
 
 @Component({
   selector: 'app-header',
@@ -13,15 +14,14 @@ import { loadCatalog, NavCatalog, portalEntry } from '../navbar/nav-catalog';
   `,
 })
 export class HeaderComponent {
-  private readonly catalog = signal<NavCatalog | null>(null);
+  private readonly catalogs = inject(CatalogService);
+  private readonly catalog = signal<AppCatalog | null>(null);
   readonly session = inject(AppsSessionService);
   readonly signOutError = signal(false);
   private signingOut = false;
 
   constructor() {
-    const request = new AbortController();
-    inject(DestroyRef).onDestroy(() => request.abort());
-    void loadCatalog(request.signal).then((value) => this.catalog.set(value));
+    void this.catalogs.load().then((value) => this.catalog.set(value)).catch(() => {});
   }
 
   get homeHref(): string {

@@ -37,9 +37,17 @@ export class CatalogService {
   readonly preview = signal<NavGroupRecord[] | null>(null);
   readonly navRevision = signal(0);
   private readonly session = inject(AppsSessionService);
+  private pendingCatalog: Promise<AppCatalog> | null = null;
 
   load(signal?: AbortSignal): Promise<AppCatalog> {
-    return this.request('/api/apps/catalog', { method: 'GET', signal });
+    if (signal?.aborted) return Promise.reject(new DOMException('已取消。', 'AbortError'));
+    if (!this.pendingCatalog) {
+      const request = this.request('/api/apps/catalog', { method: 'GET' });
+      this.pendingCatalog = request.finally(() => {
+        this.pendingCatalog = null;
+      });
+    }
+    return this.pendingCatalog;
   }
 
   saveSystems(systems: ManagedSystem[], signal?: AbortSignal): Promise<AppCatalog> {
