@@ -3,7 +3,9 @@
   <app-navbar />
   @if (session.state() === 'ready') {
   <div class="shell">
-    <noah-sidebar [sections]="sections" />
+    @if (sections().length) {
+      <noah-sidebar [sections]="sections()" />
+    }
     <main class="workspace">
       <router-outlet />
     </main>
