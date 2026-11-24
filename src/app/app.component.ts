@@ -5,6 +5,7 @@ import { AppsSessionService } from './apps-session.service';
 import { CatalogService, NavGroupRecord } from './catalog.service';
 import { HeaderComponent } from './layout/header/header.component';
 import { NavbarComponent } from './layout/navbar/navbar.component';
+import { signedIn } from './require-session';
 
 @Component({
   selector: 'app-root',
@@ -21,9 +22,7 @@ export class AppComponent {
   readonly shellReady = signal(false);
 
   constructor() {
-    void this.catalogs.load()
-      .then((catalog) => this.sections.set(sectionsFor(catalog.groups, 'noah-apps')))
-      .finally(() => this.shellReady.set(true));
+    void this.open();
     effect((onCleanup) => {
       this.catalogs.navRevision();
       const request = new AbortController();
@@ -32,6 +31,13 @@ export class AppComponent {
         if (!request.signal.aborted) this.sections.set(sectionsFor(catalog.groups, 'noah-apps'));
       }).catch(() => {});
     });
+  }
+
+  private async open(): Promise<void> {
+    if (!await signedIn()) return;
+    const catalog = await this.catalogs.load().catch(() => null);
+    if (catalog) this.sections.set(sectionsFor(catalog.groups, 'noah-apps'));
+    this.shellReady.set(true);
   }
 
   @ViewChild('signInDialog')

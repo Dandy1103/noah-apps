@@ -159,6 +159,8 @@ function writeProject(target, project) {
     'src/main.ts': mainTs(),
     'src/styles.scss': styles(),
     'src/app/app.config.ts': appConfig(),
+    'proxy.conf.mjs': devProxy(),
+    'src/app/require-session.ts': requireSession(),
     'src/app/app.routes.ts': routes(),
     'src/app/app.component.ts': appComponent(),
     'src/app/app.component.html': appHtml(),
@@ -254,7 +256,7 @@ function angularJson(project) {
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
-          "options": { "port": ${project.port} },
+          "options": { "proxyConfig": "proxy.conf.mjs", "port": ${project.port} },
           "configurations": {
             "production": { "buildTarget": "${project.name}:build:production" },
             "development": { "buildTarget": "${project.name}:build:development" }
@@ -491,12 +493,51 @@ export const appConfig: ApplicationConfig = {
 `;
 }
 
+function devProxy() {
+  return `const target = 'https://noah-platform.dandy-cheng.com';
+const rule = { target, secure: true, changeOrigin: true, xfwd: true };
+
+export default {
+  '/api': rule,
+  '/oauth2': rule,
+  '/login': rule,
+  '/auth': rule,
+};
+`;
+}
+
+function requireSession() {
+  return `import { CanActivateFn } from '@angular/router';
+
+export function sendToLogin(): void {
+  const next = location.pathname + location.search;
+  location.replace('/auth/login?' + new URLSearchParams({ next }));
+}
+
+export const requireSession: CanActivateFn = () => {
+  return fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' }).then((response) => {
+    if (response.ok) return true;
+    if (response.status === 401) sendToLogin();
+    return false;
+  }).catch(() => false);
+};
+
+export async function signedIn(): Promise<boolean> {
+  const response = await fetch('/api/session', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+  if (response?.ok) return true;
+  if (!response || response.status === 401) sendToLogin();
+  return false;
+}
+`;
+}
+
 function routes() {
   return `import { Routes } from '@angular/router';
 import { HomeComponent } from './features/home/home.component';
+import { requireSession } from './require-session';
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
+  { path: '', component: HomeComponent, canActivate: [requireSession] },
   { path: '**', redirectTo: '' },
 ];
 `;
