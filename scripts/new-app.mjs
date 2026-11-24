@@ -83,7 +83,6 @@ function copyAssets(target) {
   copyFileSync(join(appsRoot, 'src', 'favicon.ico'), join(target, 'src', 'favicon.ico'));
   copyFileSync(join(appsRoot, 'src', 'assets', 'images', 'logo.png'), join(target, 'src', 'assets', 'images', 'logo.png'));
   copyFileSync(join(parentDir, 'noah-notice', 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'), join(target, 'src', 'app', 'layout', 'navbar', 'nav-catalog.ts'));
-  copyFileSync(join(appsRoot, 'src', 'app', 'shared', 'table', 'table.component.scss'), join(target, 'src', 'app', 'shared', 'table', 'table.component.scss'));
 }
 
 async function registerRemote(repo, label, port) {
@@ -164,17 +163,14 @@ function writeProject(target, project) {
     'src/app/app.routes.ts': routes(),
     'src/app/app.component.ts': appComponent(),
     'src/app/app.component.html': appHtml(),
-    'src/app/app.component.scss': appScss(),
     'src/app/layout/header/header.component.ts': headerTs(),
     'src/app/layout/header/header.component.html': headerHtml(project),
     'src/app/layout/navbar/navbar.component.ts': navbarTs(project),
     'src/app/layout/sidenav/sidenav.component.ts': sidenavTs(project),
     'src/app/layout/sidenav/sidenav.component.html': sidenavHtml(),
-    'src/app/layout/sidenav/sidenav.component.scss': sidenavScss(),
     'src/app/shared/table/table.component.ts': tableTs(),
     'src/app/features/home/home.component.ts': homeTs(),
     'src/app/features/home/home.component.html': homeHtml(project),
-    'src/app/features/home/home.component.scss': homeScss(),
   };
   for (const [file, contents] of Object.entries(files)) {
     const full = join(target, file);
@@ -455,31 +451,7 @@ bootstrapApplication(AppComponent, appConfig)
 }
 
 function styles() {
-  return `:root {
-  --brand: #001430;
-  --color-primary: #001430;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-border: #e2e8f0;
-  --color-surface-selected: #edf2f8;
-  --color-info: #0284c7;
-  --radius-sm: 4px;
-  --shadow-md: 0 4px 12px rgb(15 23 42 / 8%);
-  --header-height: 60px;
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-  font-size: 16px;
-}
-
-h1 { margin: 0; }
-`;
+  return '';
 }
 
 function appConfig() {
@@ -590,7 +562,6 @@ import { SidenavComponent } from './layout/sidenav/sidenav.component';
   standalone: true,
   imports: [RouterOutlet, HeaderComponent, NavbarComponent, SidenavComponent],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss',
 })
 export class AppComponent {}
 `;
@@ -610,35 +581,6 @@ function appHtml() {
 `;
 }
 
-function appScss() {
-  return `.app {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  min-width: 0;
-  min-height: calc(100dvh - var(--header-height));
-}
-
-.shell {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-  min-height: 0;
-}
-
-.workspace {
-  flex: 1;
-  min-width: 0;
-  padding: 28px 32px 48px;
-}
-
-@media (max-width: 720px) {
-  .shell {
-    flex-direction: column;
-  }
-}
-`;
-}
-
 function sidenavTs(project) {
   return `import { Component, DestroyRef, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -651,7 +593,6 @@ const SELF_REPO = '${project.name}';
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   templateUrl: './sidenav.component.html',
-  styleUrl: './sidenav.component.scss',
 })
 export class SidenavComponent {
   sections: SideSection[] = [];
@@ -679,76 +620,6 @@ function sidenavHtml() {
     </div>
   }
 </nav>
-`;
-}
-
-function sidenavScss() {
-  return `:host {
-  display: contents;
-}
-
-.sidenav {
-  width: 196px;
-  flex-shrink: 0;
-  padding: 20px 12px 32px;
-  border-right: 1px solid var(--color-border);
-  background: #fff;
-}
-
-.sidenav__group p {
-  margin: 0 0 4px;
-  padding: 0 12px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.sidenav a {
-  display: block;
-  width: 100%;
-  height: 40px;
-  margin: 0;
-  padding: 0 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: 16px;
-  line-height: 40px;
-  text-align: left;
-  text-decoration: none;
-}
-
-.sidenav a:hover {
-  background: rgb(15 23 42 / 5%);
-}
-
-.sidenav a.is-active,
-.sidenav a.is-active:hover {
-  background: var(--color-surface-selected);
-  color: var(--color-primary);
-  font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--color-primary);
-}
-
-@media (max-width: 720px) {
-  .sidenav {
-    display: flex;
-    width: auto;
-    gap: 16px;
-    overflow-x: auto;
-    padding: 12px 16px;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .sidenav__group {
-    flex: 0 0 auto;
-  }
-
-  .sidenav a {
-    width: auto;
-    white-space: nowrap;
-  }
-}
 `;
 }
 
@@ -800,7 +671,6 @@ function tableTs() {
   selector: 'app-table',
   standalone: true,
   template: '<div class="data-table"><ng-content /></div>',
-  styleUrl: './table.component.scss',
 })
 export class TableComponent {}
 `;
@@ -813,7 +683,6 @@ function homeTs() {
   selector: 'app-home',
   standalone: true,
   templateUrl: './home.component.html',
-  styleUrl: './home.component.scss',
 })
 export class HomeComponent {
   readonly portalHome = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
@@ -836,61 +705,5 @@ function homeHtml(project) {
   </nav>
 </div>
 <p class="note">這個專案剛開好，功能接著做。</p>
-`;
-}
-
-function homeScss() {
-  return `:host { display: block; }
-
-.roster-head { margin-bottom: 16px; }
-
-.roster-head__title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-left: 12px;
-  border-left: 3px solid #001430;
-}
-
-.roster-head__title h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.crumb { margin-top: 4px; }
-
-.crumb ol {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 16px;
-}
-
-.crumb li + li::before {
-  content: "/";
-  margin: 0 8px;
-  color: var(--color-text-secondary);
-}
-
-.crumb a {
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.crumb a:hover { text-decoration: underline; }
-
-.crumb [aria-current="page"] {
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.note {
-  margin: 0;
-  color: #64748b;
-}
 `;
 }
