@@ -77,7 +77,7 @@ export class NavigationComponent {
     try {
       const saved = await this.catalog.saveNav(this.payload(), this.controller.signal);
       this.catalog.preview.set(null);
-      this.catalog.navRevision.update((value) => value + 1);
+      this.catalog.refresh();
       this.apply(saved.systems, saved.groups);
       this.status.set('已儲存。');
     } catch (error) {

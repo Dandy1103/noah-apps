@@ -35,19 +35,25 @@ export interface AppCatalog {
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   readonly preview = signal<NavGroupRecord[] | null>(null);
+  readonly catalog = signal<AppCatalog | null>(null);
   readonly navRevision = signal(0);
   private readonly session = inject(AppsSessionService);
-  private pendingCatalog: Promise<AppCatalog> | null = null;
+  private catalogRequest: Promise<AppCatalog> | null = null;
 
   load(signal?: AbortSignal): Promise<AppCatalog> {
     if (signal?.aborted) return Promise.reject(new DOMException('已取消。', 'AbortError'));
-    if (!this.pendingCatalog) {
-      const request = this.request('/api/apps/catalog', { method: 'GET' });
-      this.pendingCatalog = request.finally(() => {
-        this.pendingCatalog = null;
+    if (!this.catalogRequest) {
+      this.catalogRequest = this.request('/api/apps/catalog', { method: 'GET' }).then((body) => {
+        this.catalog.set(body);
+        return body;
       });
     }
-    return this.pendingCatalog;
+    return this.catalogRequest;
+  }
+
+  refresh(): void {
+    this.catalogRequest = null;
+    this.navRevision.update((value) => value + 1);
   }
 
   saveSystems(systems: ManagedSystem[], signal?: AbortSignal): Promise<AppCatalog> {

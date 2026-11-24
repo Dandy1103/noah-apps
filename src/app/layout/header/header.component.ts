@@ -21,6 +21,11 @@ export class HeaderComponent {
   private signingOut = false;
 
   constructor() {
+    const current = this.catalogs.catalog();
+    if (current) {
+      this.catalog.set(current);
+      return;
+    }
     void this.catalogs.load().then((value) => this.catalog.set(value)).catch(() => {});
   }
 

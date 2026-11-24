@@ -16,6 +16,8 @@ export class NavbarComponent {
   private readonly catalog = signal<NavCatalog | null>(null);
 
   constructor() {
+    const current = this.catalogs.catalog();
+    if (current) this.catalog.set(current);
     effect((onCleanup) => {
       this.catalogs.navRevision();
       const request = new AbortController();

@@ -46,7 +46,7 @@ export class SystemsComponent {
         audience: system.audience.trim(),
       })), this.controller.signal);
       this.systems = saved.systems;
-      this.catalog.navRevision.update((value) => value + 1);
+      this.catalog.refresh();
       this.status.set('已儲存。');
     } catch (error) {
       this.status.set(error instanceof Error ? error.message : '儲存失敗，請稍後再試。');

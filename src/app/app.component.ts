@@ -1,4 +1,4 @@
-import { NoahSidebarComponent, NoahSidebarSection } from '@dandy1103/ui';
+import { NoahLoadingMaskComponent, NoahSidebarComponent, NoahSidebarSection } from '@dandy1103/ui';
 import { Component, effect, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { AppsSessionService } from './apps-session.service';
@@ -9,7 +9,7 @@ import { NavbarComponent } from './layout/navbar/navbar.component';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NoahSidebarComponent, RouterOutlet, HeaderComponent, NavbarComponent],
+  imports: [NoahLoadingMaskComponent, NoahSidebarComponent, RouterOutlet, HeaderComponent, NavbarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -18,8 +18,12 @@ export class AppComponent {
   readonly router = inject(Router);
   private readonly catalogs = inject(CatalogService);
   readonly sections = signal<NoahSidebarSection[]>([]);
+  readonly shellReady = signal(false);
 
   constructor() {
+    void this.catalogs.load()
+      .then((catalog) => this.sections.set(sectionsFor(catalog.groups, 'noah-apps')))
+      .finally(() => this.shellReady.set(true));
     effect((onCleanup) => {
       this.catalogs.navRevision();
       const request = new AbortController();
