@@ -36,14 +36,6 @@
           }
         </label>
         <label class="editor-field">
-          <span>本機網址</span>
-          @if (canEdit()) {
-            <input noahInput class="bar-control" [value]="app.localUrl || ''" (input)="app.localUrl = text($event)" placeholder="本機還沒有" autocomplete="off" />
-          } @else {
-            <span class="editor-field__value">{{ app.localUrl || '本機還沒有' }}</span>
-          }
-        </label>
-        <label class="editor-field">
           <span>誰看得到</span>
           @if (canEdit()) {
             <input noahInput class="bar-control" [value]="app.audience" (input)="app.audience = text($event)" autocomplete="off" />

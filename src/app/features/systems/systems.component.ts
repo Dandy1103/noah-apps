@@ -42,7 +42,6 @@ export class SystemsComponent {
         ...system,
         name: system.name.trim(),
         url: system.url.trim(),
-        localUrl: (system.localUrl || '').trim(),
         audience: system.audience.trim(),
       })), this.controller.signal);
       this.systems = saved.systems;

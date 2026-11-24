@@ -5,7 +5,6 @@ export interface ManagedSystem {
   name: string;
   repo: string;
   url: string;
-  localUrl?: string;
   audience: string;
   online: boolean;
 }

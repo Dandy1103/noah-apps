@@ -41,8 +41,8 @@ const product = title;
 console.log(`建立 ${name}，畫面名稱 ${title}，port ${port}`);
 writeProject(target, { name, title, product, port });
 copyAssets(target);
-registerApp(name, title, port);
-await registerRemote(name, title, port);
+registerApp(name, title);
+await registerRemote(name, title);
 run('npm', ['install'], target);
 run('git', ['init', '-b', 'main'], target);
 run('git', ['add', '-A'], target);
@@ -84,12 +84,12 @@ function copyAssets(target) {
   copyFileSync(join(appsRoot, 'src', 'assets', 'images', 'logo.png'), join(target, 'src', 'assets', 'images', 'logo.png'));
 }
 
-async function registerRemote(repo, label, port) {
+async function registerRemote(repo, label) {
   try {
     const response = await fetch('http://127.0.0.1:3002/api/apps/systems', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: label, repo, url: '', localUrl: `http://localhost:${port}/`, audience: '尚未開放', online: false }),
+      body: JSON.stringify({ name: label, repo, url: '', audience: '尚未開放', online: false }),
     });
     if (response.status === 401 || response.status === 403) {
       console.log('請用管理員帳號登入應用管理，將新系統加入清單。');
@@ -101,11 +101,11 @@ async function registerRemote(repo, label, port) {
   }
 }
 
-function registerApp(repo, label, port) {
+function registerApp(repo, label) {
   const catalogPath = join(appsRoot, 'src', 'app', 'catalog.ts');
   const text = readFileSync(catalogPath, 'utf8');
   if (text.includes(`repo: '${repo}'`)) return;
-  const line = `  { name: '${label}', repo: '${repo}', url: '', localUrl: 'http://localhost:${port}/', audience: '尚未開放', online: false },\n`;
+  const line = `  { name: '${label}', repo: '${repo}', url: '', audience: '尚未開放', online: false },\n`;
   writeFileSync(catalogPath, text.replace(/\r?\n\];\s*$/, `\n${line}];\n`));
 }
 
@@ -593,11 +593,13 @@ export class TableComponent {}
 }
 
 function homeTs() {
-  return `import { Component } from '@angular/core';
+  return `import { NoahPageHeadingComponent } from '@dandy1103/ui';
+import { Component } from '@angular/core';
 
 @Component({
   selector: 'app-home',
   standalone: true,
+  imports: [NoahPageHeadingComponent],
   templateUrl: './home.component.html',
 })
 export class HomeComponent {
@@ -609,17 +611,7 @@ export class HomeComponent {
 }
 
 function homeHtml(project) {
-  return `<div class="roster-head">
-  <div class="roster-head__title">
-    <h1>${project.title}</h1>
-  </div>
-  <nav class="crumb" aria-label="麵包屑">
-    <ol>
-      <li><a [href]="portalHome">首頁</a></li>
-      <li aria-current="page">${project.title}</li>
-    </ol>
-  </nav>
-</div>
+  return `<noah-page-heading title="${project.title}" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '${project.title}' }]" />
 <p class="note">這個專案剛開好，功能接著做。</p>
 `;
 }
