@@ -500,7 +500,10 @@ const platformHost = 'noah-platform.dandy-cheng.com';
 function markDevHost(proxyReq, req) {
   proxyReq.removeHeader('x-forwarded-port');
   const host = req.headers.host;
-  if (host) proxyReq.setHeader('X-Noah-Dev-Host', host);
+  if (!host) return;
+  proxyReq.setHeader('X-Forwarded-Host', host);
+  proxyReq.setHeader('X-Forwarded-Proto', 'http');
+  proxyReq.setHeader('X-Noah-Dev-Host', host);
   proxyReq.setHeader('X-Noah-Dev-Proto', 'http');
 }
 
