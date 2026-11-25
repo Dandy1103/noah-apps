@@ -189,6 +189,7 @@ function packageJson(project) {
     "@angular/core": "^17.3.0",
     "@angular/platform-browser": "^17.3.0",
     "@angular/router": "^17.3.0",
+    "@dandy1103/common": "^0.1.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"
@@ -466,11 +467,24 @@ const platformHost = 'noah-platform.dandy-cheng.com';
 function markDevHost(proxyReq, req) {
   proxyReq.removeHeader('x-forwarded-port');
   const host = req.headers.host;
-  if (!host) return;
-  proxyReq.setHeader('X-Forwarded-Host', host);
-  proxyReq.setHeader('X-Forwarded-Proto', 'http');
-  proxyReq.setHeader('X-Noah-Dev-Host', host);
-  proxyReq.setHeader('X-Noah-Dev-Proto', 'http');
+  if (host) {
+    proxyReq.setHeader('X-Forwarded-Host', host);
+    proxyReq.setHeader('X-Forwarded-Proto', 'http');
+    proxyReq.setHeader('X-Noah-Dev-Host', host);
+    proxyReq.setHeader('X-Noah-Dev-Proto', 'http');
+  }
+  if (localOrigin(req.headers.origin)) proxyReq.setHeader('Origin', target);
+  if (localOrigin(req.headers.referer)) proxyReq.setHeader('Referer', \`\${target}/\`);
+}
+
+function localOrigin(value) {
+  if (!value) return false;
+  try {
+    const name = new URL(value).hostname;
+    return name === 'localhost' || name === '127.0.0.1' || name === '[::1]';
+  } catch {
+    return false;
+  }
 }
 
 function stayHere(proxyRes) {

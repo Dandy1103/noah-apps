@@ -1,7 +1,9 @@
-import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent, type NoahSelectOption } from '@dandy1103/ui';
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahTableComponent, type NoahSelectOption } from '@dandy1103/ui';
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, HostListener, inject, Injector, signal, ViewChild } from '@angular/core';
 import { CatalogService, ManagedSystem, NavGroupRecord } from '../../catalog.service';
 import { portalEntry } from '../../layout/navbar/nav-catalog';
+import { OperationLoadingService } from '@dandy1103/common';
+import { ToastService } from '../../shared/toast/toast.service';
 
 interface DraftLink {
   key: number;
@@ -22,6 +24,10 @@ interface DraftGroup {
   sections: DraftSection[];
 }
 
+type InlineEdit =
+  | { field: DraftSection; title: string }
+  | { field: DraftLink; label: string; path: string };
+
 type PointerTarget =
   | { kind: 'group'; index: number }
   | { kind: 'section'; group: DraftGroup; index: number }
@@ -33,16 +39,19 @@ type PointerDrag = PointerTarget & { id: number; startX: number; startY: number;
   selector: 'app-navigation',
   standalone: true,
   host: { '[class.with-floating-actions]': 'isReady()' },
-  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent],
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahTableComponent],
   templateUrl: './navigation.component.html',
   styleUrl: './navigation.component.scss',
 })
 export class NavigationComponent {
   private readonly catalog = inject(CatalogService);
+  private readonly toast = inject(ToastService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly controller = new AbortController();
+  readonly loading = inject(OperationLoadingService).create(this.controller.signal);
   private readonly draftGroups = signal<DraftGroup[] | null>(null);
+  private readonly activeEdit = signal<InlineEdit | null>(null);
   private readonly systemOptions = signal<readonly NoahSelectOption[]>([]);
   private savedGroups: DraftGroup[] = [];
   private key = 0;
@@ -53,12 +62,12 @@ export class NavigationComponent {
   get portalHome(): string {
     return portalEntry(this.systems.length ? { systems: this.systems } : null);
   }
-  readonly status = signal('讀取中');
+  readonly status = signal('');
   readonly isSaving = signal(false);
   readonly isReady = signal(false);
   readonly isEditing = computed(() => this.draftGroups() !== null);
   readonly selectedKey = signal<number | null>(null);
-  readonly activeFieldKey = signal<number | null>(null);
+  readonly activeFieldKey = computed(() => this.activeEdit()?.field.key ?? null);
   readonly isGroupPickerOpen = signal(false);
   readonly availableSystemOptions = computed(() => {
     const assigned = new Set(this.groups.map((group) => group.app));
@@ -107,13 +116,15 @@ export class NavigationComponent {
     this.isSaving.set(true);
     this.status.set('');
     try {
-      const saved = await this.catalog.saveNav(this.payload(), this.controller.signal);
+      const saved = await this.loading.run(() => this.catalog.saveNav(this.payload(), this.controller.signal));
+      if (this.controller.signal.aborted) return;
       this.apply(saved.systems, saved.groups);
       this.closeEditor();
       this.catalog.refresh();
-      this.status.set('已儲存。');
+      this.toast.showSuccess('導覽已儲存');
     } catch (error) {
-      this.status.set(error instanceof Error ? error.message : '儲存失敗，請稍後再試。');
+      if (this.controller.signal.aborted) return;
+      this.toast.showError('儲存失敗', (error instanceof Error && error.message.trim()) || '請稍後再試。');
     } finally {
       this.isSaving.set(false);
     }
@@ -126,7 +137,7 @@ export class NavigationComponent {
     if (pointer && host.hasPointerCapture(pointer.id)) host.releasePointerCapture(pointer.id);
     for (const motion of this.motions.values()) motion.cancel();
     this.motions.clear();
-    this.activeFieldKey.set(null);
+    this.activeEdit.set(null);
     this.closeGroupPicker();
     this.draftGroups.set(null);
     this.catalog.preview.set(null);
@@ -134,18 +145,47 @@ export class NavigationComponent {
 
   selectGroup(key: number): void {
     if (this.selectedKey() === key) return;
-    this.activeFieldKey.set(null);
+    this.activeEdit.set(null);
     this.closeGroupPicker();
     this.selectedKey.set(key);
   }
 
-  activateField(key: number): void {
+  activateField(field: DraftSection | DraftLink): void {
+    const key = field.key;
     if (!this.isEditing() || this.isSaving() || this.activeFieldKey() === key) return;
-    this.activeFieldKey.set(key);
+    this.activeEdit.set('title' in field
+      ? { field, title: field.title }
+      : { field, label: field.label, path: field.path });
     afterNextRender(() => {
       if (this.activeFieldKey() === key && !this.isSaving()) {
         this.activeField?.nativeElement.querySelector('input')?.focus();
       }
+    }, { injector: this.injector });
+  }
+
+  finishInlineEdit(event: Event): void {
+    if (!(event instanceof KeyboardEvent)) return;
+    const edit = this.activeEdit();
+    // Some browsers report 229 while the keyboard event is handled by the IME.
+    if (!edit || event.isComposing || event.keyCode === 229 || this.isSaving()) return;
+
+    event.preventDefault();
+    if (event.key === 'Escape') {
+      if ('title' in edit) {
+        edit.field.title = edit.title;
+      } else {
+        edit.field.label = edit.label;
+        edit.field.path = edit.path;
+      }
+      this.syncPreview();
+    }
+    const key = edit.field.key;
+    this.activeEdit.set(null);
+    afterNextRender(() => {
+      if (!this.isEditing() || this.activeFieldKey() !== null || this.isSaving()) return;
+      this.host.nativeElement.querySelector<HTMLButtonElement>(
+        `button[data-inline-editor="${key}"], [data-inline-editor="${key}"] .text-edit`,
+      )?.focus();
     }, { injector: this.injector });
   }
 
@@ -161,7 +201,7 @@ export class NavigationComponent {
         target.hasAttribute('data-opens-inline-editor')
       ),
     );
-    if (!staysOpen) this.activeFieldKey.set(null);
+    if (!staysOpen) this.activeEdit.set(null);
   }
 
   closeGroupPicker(): void {
@@ -185,21 +225,21 @@ export class NavigationComponent {
     };
     this.draftGroups.set([...draft, group]);
     this.selectGroup(group.key);
-    this.activateField(group.sections[0].key);
+    this.activateField(group.sections[0]);
     this.syncPreview();
   }
 
   addSection(group: DraftGroup): void {
     const section = { key: this.nextKey(), title: '', links: [] };
     group.sections.push(section);
-    this.activateField(section.key);
+    this.activateField(section);
     this.syncPreview();
   }
 
   removeSection(group: DraftGroup, index: number): void {
     const section = group.sections[index];
     const active = this.activeFieldKey();
-    if (section.key === active || section.links.some((link) => link.key === active)) this.activeFieldKey.set(null);
+    if (section.key === active || section.links.some((link) => link.key === active)) this.activeEdit.set(null);
     group.sections.splice(index, 1);
     this.syncPreview();
   }
@@ -207,12 +247,12 @@ export class NavigationComponent {
   addLink(section: DraftSection): void {
     const link = { key: this.nextKey(), label: '', path: '' };
     section.links.push(link);
-    this.activateField(link.key);
+    this.activateField(link);
     this.syncPreview();
   }
 
   removeLink(section: DraftSection, index: number): void {
-    if (section.links[index].key === this.activeFieldKey()) this.activeFieldKey.set(null);
+    if (section.links[index].key === this.activeFieldKey()) this.activeEdit.set(null);
     this.closeGroupPicker();
     section.links.splice(index, 1);
     this.syncPreview();
@@ -429,7 +469,7 @@ export class NavigationComponent {
 
   private async reload(): Promise<void> {
     try {
-      const catalog = await this.catalog.load(this.controller.signal);
+      const catalog = await this.loading.run(() => this.catalog.load(this.controller.signal));
       this.apply(catalog.systems, catalog.groups);
       this.status.set('');
     } catch {

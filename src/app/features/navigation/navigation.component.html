@@ -1,6 +1,10 @@
 <noah-page-heading title="導覽" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '導覽' }]" />
 
-<p class="status" role="status">{{ isSaving() ? '儲存中…' : status() }}</p>
+<p class="status" role="status">{{ status() }}</p>
+@if (loading.phase() !== 'hidden') {
+  <noah-loading-mask class="operation-loading" [class.operation-loading--leaving]="loading.phase() === 'leaving'"
+    [style.--operation-loading-fade-duration]="loading.fadeDuration" [label]="isSaving() ? '正在儲存...' : '正在載入...'" />
+}
 @if (isReady()) {
   <div class="floating-actions">
     <noah-button [message]="isEditing() ? '儲存' : '編輯'"
@@ -74,7 +78,7 @@
                 <h3 class="section__heading" [class.visually-hidden]="activeFieldKey() === section.key" [id]="'navigation-section-' + section.key">
                   @if (isEditing() && activeFieldKey() !== section.key) {
                     <button type="button" class="text-edit" [attr.data-inline-editor]="section.key"
-                      (click)="activateField(section.key)">{{ section.title || '未命名分組' }}</button>
+                      (click)="activateField(section)">{{ section.title || '未命名分組' }}</button>
                   } @else {
                     {{ section.title || '未命名分組' }}
                   }
@@ -82,7 +86,8 @@
                 @if (isEditing() && activeFieldKey() === section.key) {
                   <noah-input #activeField class="section__title" label="分組名稱" [value]="section.title"
                     [attr.data-inline-editor]="section.key"
-                    (input)="section.title = text($event); note()" />
+                    (input)="section.title = text($event); note()"
+                    (keydown.enter)="finishInlineEdit($event)" (keydown.escape)="finishInlineEdit($event)" />
                 }
               </div>
               @if (isEditing()) {
@@ -111,7 +116,7 @@
                       <tr [attr.data-link-index]="linkIndex" [attr.data-section-key]="section.key" [attr.data-flip-key]="link.key"
                         [attr.data-inline-editor]="link.key"
                         [class.is-holding]="holdingLink(section.key, linkIndex)" [class.is-active]="activeFieldKey() === link.key"
-                        (click)="activateField(link.key)">
+                        (click)="activateField(link)">
                         @if (isEditing()) {
                           <td>
                             <button type="button" class="handle" [attr.aria-label]="'拖曳排序：' + (link.label || '未命名連結')"
@@ -130,16 +135,19 @@
                         <td class="outline-links__name">
                           @if (activeFieldKey() === link.key) {
                             <noah-input #activeField class="table-input" label="連結名稱" [value]="link.label"
-                              (input)="link.label = text($event); note()" />
+                              (input)="link.label = text($event); note()"
+                              (keydown.enter)="finishInlineEdit($event)" (keydown.escape)="finishInlineEdit($event)" />
                           } @else if (isEditing()) {
-                            <button type="button" class="text-edit" (click)="activateField(link.key)">{{ link.label || '未命名連結' }}</button>
+                            <button type="button" class="text-edit" (click)="activateField(link)">{{ link.label || '未命名連結' }}</button>
                           } @else {
                             {{ link.label || '未命名連結' }}
                           }
                         </td>
                         <td>
                           @if (activeFieldKey() === link.key) {
-                            <noah-input class="table-input" label="路徑" [value]="link.path" (input)="link.path = text($event); note()" />
+                            <noah-input class="table-input" label="路徑" [value]="link.path"
+                              (input)="link.path = text($event); note()"
+                              (keydown.enter)="finishInlineEdit($event)" (keydown.escape)="finishInlineEdit($event)" />
                           } @else {
                             {{ link.path || '—' }}
                           }

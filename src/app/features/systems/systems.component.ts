@@ -1,27 +1,31 @@
-import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahSelectComponent, type NoahSelectOption } from '@dandy1103/ui';
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahSelectComponent, type NoahSelectOption } from '@dandy1103/ui';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { MANAGED_APPS } from '../../catalog';
 import { CatalogService, ManagedSystem } from '../../catalog.service';
 import { portalEntry } from '../../layout/navbar/nav-catalog';
+import { OperationLoadingService } from '@dandy1103/common';
+import { ToastService } from '../../shared/toast/toast.service';
 
 const SYSTEM_ACRONYMS = new Set(['hrm', 'crm', 'erp', 'itsm', 'lms']);
 
 @Component({
   selector: 'app-systems',
   standalone: true,
-  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahSelectComponent],
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahSelectComponent],
   templateUrl: './systems.component.html',
   styleUrl: './systems.component.scss',
 })
 export class SystemsComponent {
   private readonly catalog = inject(CatalogService);
+  private readonly toast = inject(ToastService);
   private readonly controller = new AbortController();
+  readonly loading = inject(OperationLoadingService).create(this.controller.signal);
   private readonly draftSystems = signal<ManagedSystem[] | null>(null);
 
   get portalHome(): string {
     return portalEntry(this.systems.length ? { systems: this.systems } : null);
   }
-  readonly status = signal('讀取中');
+  readonly status = signal('');
   readonly canEdit = signal(false);
   readonly isEditing = computed(() => this.draftSystems() !== null);
   readonly isSaving = signal(false);
@@ -70,17 +74,20 @@ export class SystemsComponent {
     this.isSaving.set(true);
     this.status.set('');
     try {
-      const saved = await this.catalog.saveSystems(draft.map((system) => ({
+      const systems = draft.map((system) => ({
         ...system,
         name: system.name.trim(),
         url: system.url.trim(),
-      })), this.controller.signal);
+      }));
+      const saved = await this.loading.run(() => this.catalog.saveSystems(systems, this.controller.signal));
+      if (this.controller.signal.aborted) return;
       this.systems = saved.systems;
       this.catalog.refresh();
       this.draftSystems.set(null);
-      this.status.set('已儲存。');
+      this.toast.showSuccess('系統清單已儲存');
     } catch (error) {
-      this.status.set(error instanceof Error ? error.message : '儲存失敗，請稍後再試。');
+      if (this.controller.signal.aborted) return;
+      this.toast.showError('儲存失敗', (error instanceof Error && error.message.trim()) || '請稍後再試。');
     } finally {
       this.isSaving.set(false);
     }
@@ -88,7 +95,7 @@ export class SystemsComponent {
 
   private async reload(): Promise<void> {
     try {
-      const catalog = await this.catalog.load(this.controller.signal);
+      const catalog = await this.loading.run(() => this.catalog.load(this.controller.signal));
       this.systems = catalog.systems;
       this.canEdit.set(true);
       this.status.set('');
