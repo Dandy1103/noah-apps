@@ -1,13 +1,11 @@
 import { Component, signal } from '@angular/core';
-import { NoahLoadingMaskComponent } from '@dandy1103/ui';
 import { RouterOutlet } from '@angular/router';
 import { signedIn } from './require-session';
-import { ToastComponent } from './shared/toast/toast.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NoahLoadingMaskComponent, ToastComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
 })
 export class AppComponent {

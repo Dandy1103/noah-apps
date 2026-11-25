@@ -1,9 +1,9 @@
-import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahTableComponent, type NoahSelectOption } from '@dandy1103/ui';
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent, type NoahSelectOption } from '@dandy1103/ui';
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, HostListener, inject, Injector, signal, ViewChild } from '@angular/core';
 import { CatalogService, ManagedSystem, NavGroupRecord } from '../../catalog.service';
 import { portalEntry } from '../../layout/navbar/nav-catalog';
 import { OperationLoadingService } from '@dandy1103/common';
-import { ToastService } from '../../shared/toast/toast.service';
+import { ToastService } from '@dandy1103/common';
 
 interface DraftLink {
   key: number;
@@ -39,7 +39,7 @@ type PointerDrag = PointerTarget & { id: number; startX: number; startY: number;
   selector: 'app-navigation',
   standalone: true,
   host: { '[class.with-floating-actions]': 'isReady()' },
-  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahTableComponent],
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent],
   templateUrl: './navigation.component.html',
   styleUrl: './navigation.component.scss',
 })

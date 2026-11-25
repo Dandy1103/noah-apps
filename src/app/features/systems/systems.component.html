@@ -1,9 +1,5 @@
 <noah-page-heading title="系統清單" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '系統清單' }]" />
 <p class="status" role="status">{{ status() }}</p>
-@if (loading.phase() !== 'hidden') {
-  <noah-loading-mask class="operation-loading" [class.operation-loading--leaving]="loading.phase() === 'leaving'"
-    [style.--operation-loading-fade-duration]="loading.fadeDuration" [label]="isSaving() ? '正在儲存...' : '正在載入...'" />
-}
 @if (canEdit()) {
   <div class="floating-actions">
     <noah-button [message]="isEditing() ? '儲存' : '編輯'"

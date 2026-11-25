@@ -1,17 +1,17 @@
-import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahSelectComponent, type NoahSelectOption } from '@dandy1103/ui';
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahSelectComponent, type NoahSelectOption } from '@dandy1103/ui';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { MANAGED_APPS } from '../../catalog';
 import { CatalogService, ManagedSystem } from '../../catalog.service';
 import { portalEntry } from '../../layout/navbar/nav-catalog';
 import { OperationLoadingService } from '@dandy1103/common';
-import { ToastService } from '../../shared/toast/toast.service';
+import { ToastService } from '@dandy1103/common';
 
 const SYSTEM_ACRONYMS = new Set(['hrm', 'crm', 'erp', 'itsm', 'lms']);
 
 @Component({
   selector: 'app-systems',
   standalone: true,
-  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahLoadingMaskComponent, NoahSelectComponent],
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahSelectComponent],
   templateUrl: './systems.component.html',
   styleUrl: './systems.component.scss',
 })
