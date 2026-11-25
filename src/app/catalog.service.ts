@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { AppsSessionService, catalogOrigin } from './apps-session.service';
+import { AppsSessionService } from './apps-session.service';
 
 export interface ManagedSystem {
   name: string;
@@ -35,10 +35,21 @@ export interface AccountPermission {
   id: string;
   name: string;
   email: string;
-  systems: string[];
+  admin: boolean;
+  permissions: string[];
+}
+
+export interface PermissionDefinition {
+  key: string;
+  label: string;
+  description: string;
+  adminOnly: boolean;
 }
 
 export interface AppPermissions {
+  currentAccountId: string;
+  isAdmin: boolean;
+  definitions: PermissionDefinition[];
   accounts: AccountPermission[];
 }
 
@@ -53,7 +64,7 @@ export class CatalogService {
   load(signal?: AbortSignal): Promise<AppCatalog> {
     if (signal?.aborted) return Promise.reject(new DOMException('已取消。', 'AbortError'));
     if (!this.catalogRequest) {
-      this.catalogRequest = this.request('/api/apps/catalog', { method: 'GET' }).then((body) => {
+      this.catalogRequest = this.request('/api/apps/catalog/managed', { method: 'GET' }).then((body) => {
         this.catalog.set(body);
         return body;
       });
@@ -78,15 +89,13 @@ export class CatalogService {
     return this.request<AppPermissions>('/api/apps/permissions', { method: 'GET', signal });
   }
 
-  savePermissions(accounts: AccountPermission[], signal?: AbortSignal): Promise<AppPermissions> {
+  savePermissions(accounts: Array<Pick<AccountPermission, 'id' | 'permissions'>>, signal?: AbortSignal): Promise<AppPermissions> {
     return this.request<AppPermissions>('/api/apps/permissions', { method: 'PUT', body: JSON.stringify({ accounts }), signal });
   }
 
   private async request<T = AppCatalog>(path: string, init: RequestInit): Promise<T> {
     const response = init.method === 'GET'
-      ? path === '/api/apps/catalog'
-        ? await fetch(`${catalogOrigin}${path}`, init)
-        : await this.session.read(path, init.signal ?? undefined)
+      ? await this.session.read(path, init.signal ?? undefined)
       : await this.session.write(path, init);
     if (!response.ok) throw new Error(await readMessage(response));
     return response.json() as Promise<T>;

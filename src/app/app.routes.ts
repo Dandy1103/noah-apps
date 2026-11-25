@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { requireSession } from './require-session';
+import { requireAppsManagement, requirePermissionManagement, requireSession } from './require-session';
 import { NavigationComponent } from './features/navigation/navigation.component';
 import { SystemsComponent } from './features/systems/systems.component';
 import { PermissionsComponent } from './features/permissions/permissions.component';
@@ -7,9 +7,9 @@ import { PermissionsComponent } from './features/permissions/permissions.compone
 export const routes: Routes = [
   { path: '', canActivate: [requireSession], children: [
   { path: '', pathMatch: 'full', redirectTo: 'systems' },
-  { path: 'systems', component: SystemsComponent },
-  { path: 'navigation', component: NavigationComponent },
-  { path: 'permissions', component: PermissionsComponent },
+  { path: 'systems', canActivate: [requireAppsManagement], component: SystemsComponent },
+  { path: 'navigation', canActivate: [requireAppsManagement], component: NavigationComponent },
+  { path: 'permissions', canActivate: [requirePermissionManagement], component: PermissionsComponent },
   { path: '**', redirectTo: 'systems' },
   ]},
 ];
