@@ -1,0 +1,62 @@
+<noah-page-heading title="權限管理" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '權限管理' }]" />
+<p class="status" role="status">{{ status() }}</p>
+<div class="toolbar">
+  <noah-input label="搜尋帳號" placeholder="姓名或電子郵件" [value]="search()" (input)="search.set($any($event.target).value)" />
+</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th class="account-col">帳號</th><th>目前權限</th><th class="action-col">操作</th></tr>
+    </thead>
+    <tbody>
+      @for (account of filteredAccounts(); track account.id) {
+        <tr>
+          <th scope="row"><span class="account-name">{{ account.name }}</span><span class="account-email">{{ account.email }}</span></th>
+          <td class="permission-summary">
+            @if (account.systems.length) {
+              @for (repo of account.systems; track repo) {
+                <span class="permission-chip">{{ systemName(repo) }}</span>
+              }
+            } @else {
+              <span class="no-permissions">尚未設定</span>
+            }
+          </td>
+          <td class="account-actions"><noah-button message="編輯權限" variant="secondary" (click)="editPermissions(account)" [disabled]="isSaving()" /></td>
+        </tr>
+      } @empty {
+        <tr><td class="empty" colspan="3">{{ search() ? '找不到符合的帳號' : '目前沒有帳號資料' }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (selectedAccount(); as account) {
+  <div class="permission-scrim" (click)="closeEditor()">
+    <section class="permission-dialog" role="dialog" aria-modal="true" aria-labelledby="permission-dialog-title" (click)="$event.stopPropagation()">
+      <header class="dialog-head">
+        <div>
+          <p class="eyebrow">權限管理</p>
+          <h2 id="permission-dialog-title">編輯權限</h2>
+          <p class="account-detail">{{ account.name }} · {{ account.email }}</p>
+        </div>
+        <button class="dialog-close" type="button" aria-label="關閉" (click)="closeEditor()" [disabled]="isSaving()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
+      </header>
+      <p class="dialog-hint">勾選此帳號可以使用的系統。</p>
+      <div class="permission-options">
+        @for (system of systems(); track system.repo) {
+          <label class="permission-option">
+            <input type="checkbox" [checked]="editingSystems().includes(system.repo)" [disabled]="isSaving()" (change)="toggleSystem(system.repo, $event)" />
+            <span>{{ system.name }}</span>
+            @if (!system.online) { <span class="system-status">尚未上線</span> }
+          </label>
+        }
+      </div>
+      <div class="dialog-actions">
+        <noah-button message="取消" variant="secondary" (click)="closeEditor()" [disabled]="isSaving()" />
+        <noah-button message="儲存" (click)="save()" [disabled]="isSaving()" />
+      </div>
+    </section>
+  </div>
+}

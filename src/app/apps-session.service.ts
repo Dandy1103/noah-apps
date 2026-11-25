@@ -44,7 +44,7 @@ export class AppsSessionService {
 
   signInUrl(path: string): string {
     const pathname = path.split(/[?#]/, 1)[0].replace(/^\/apps(?=\/|$)/, '');
-    const section = pathname === '/navigation' ? 'navigation' : 'systems';
+    const section = pathname === '/navigation' ? 'navigation' : pathname === '/permissions' ? 'permissions' : 'systems';
     return `${this.authOrigin}/api/apps/login?section=${section}`;
   }
 
@@ -53,6 +53,15 @@ export class AppsSessionService {
       ...init,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrfToken },
+    });
+    if (response.status === 401) this.setState('login');
+    if (response.status === 403) await this.refresh().catch(() => {});
+    return response;
+  }
+
+  async read(path: string, signal?: AbortSignal): Promise<Response> {
+    const response = await fetch(`${this.authOrigin}${path}`, {
+      credentials: 'include', cache: 'no-store', signal,
     });
     if (response.status === 401) this.setState('login');
     if (response.status === 403) await this.refresh().catch(() => {});

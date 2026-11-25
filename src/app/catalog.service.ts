@@ -31,6 +31,17 @@ export interface AppCatalog {
   groups: NavGroupRecord[];
 }
 
+export interface AccountPermission {
+  id: string;
+  name: string;
+  email: string;
+  systems: string[];
+}
+
+export interface AppPermissions {
+  accounts: AccountPermission[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   readonly preview = signal<NavGroupRecord[] | null>(null);
@@ -63,12 +74,22 @@ export class CatalogService {
     return this.request('/api/apps/nav', { method: 'PUT', body: JSON.stringify(groups), signal });
   }
 
-  private async request(path: string, init: RequestInit): Promise<AppCatalog> {
+  loadPermissions(signal?: AbortSignal): Promise<AppPermissions> {
+    return this.request<AppPermissions>('/api/apps/permissions', { method: 'GET', signal });
+  }
+
+  savePermissions(accounts: AccountPermission[], signal?: AbortSignal): Promise<AppPermissions> {
+    return this.request<AppPermissions>('/api/apps/permissions', { method: 'PUT', body: JSON.stringify({ accounts }), signal });
+  }
+
+  private async request<T = AppCatalog>(path: string, init: RequestInit): Promise<T> {
     const response = init.method === 'GET'
-      ? await fetch(`${catalogOrigin}${path}`, init)
+      ? path === '/api/apps/catalog'
+        ? await fetch(`${catalogOrigin}${path}`, init)
+        : await this.session.read(path, init.signal ?? undefined)
       : await this.session.write(path, init);
     if (!response.ok) throw new Error(await readMessage(response));
-    return response.json() as Promise<AppCatalog>;
+    return response.json() as Promise<T>;
   }
 }
 
