@@ -28,7 +28,7 @@ tbody th { font-weight: 500; }
 .dialog-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .dialog-close:focus-visible { outline: 2px solid var(--color-link); outline-offset: 2px; }
 .dialog-hint { margin: 16px 16px 0; color: var(--color-text-secondary); font-size: 14px; }
-.permission-options { display: grid; flex: 1 1 auto; gap: 4px; min-height: 0; margin: 12px 16px 16px; padding: 8px; overflow: auto; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-raised); }
+.permission-options { display: grid; flex: 1 1 auto; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); align-content: start; gap: 4px; min-height: 0; margin: 12px 16px 16px; padding: 8px; overflow: auto; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-raised); }
 .permission-option { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
 .permission-option:hover { background: var(--color-surface-selected); }
 .permission-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-primary); }
