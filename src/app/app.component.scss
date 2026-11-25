@@ -32,6 +32,14 @@ app-navbar {
   padding: 28px 32px 48px;
 }
 
+// Older hosts use .noah-input globally for native inputs.
+:host ::ng-deep noah-input > label.noah-input {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 :host:has(.sign-in-dialog[open]) {
   display: block;
   max-height: 100dvh;

@@ -1,12 +1,11 @@
-import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective } from '@dandy1103/ui';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent, type NoahSelectOption } from '@dandy1103/ui';
+import { afterNextRender, Component, computed, DestroyRef, ElementRef, HostListener, inject, Injector, signal, ViewChild } from '@angular/core';
 import { CatalogService, ManagedSystem, NavGroupRecord } from '../../catalog.service';
 import { portalEntry } from '../../layout/navbar/nav-catalog';
 
 interface DraftLink {
   key: number;
   label: string;
-  app: string;
   path: string;
 }
 
@@ -19,29 +18,37 @@ interface DraftSection {
 interface DraftGroup {
   key: number;
   label: string;
-  app: string;
+  readonly app: string;
   sections: DraftSection[];
 }
 
-type PointerDrag =
-  | { kind: 'group'; index: number; startX: number; startY: number; moved: boolean }
-  | { kind: 'section'; group: DraftGroup; index: number; startX: number; startY: number; moved: boolean }
-  | { kind: 'link'; section: DraftSection; index: number; startX: number; startY: number; moved: boolean };
+type PointerTarget =
+  | { kind: 'group'; index: number }
+  | { kind: 'section'; group: DraftGroup; index: number }
+  | { kind: 'link'; section: DraftSection; index: number };
+
+type PointerDrag = PointerTarget & { id: number; startX: number; startY: number; moved: boolean };
 
 @Component({
   selector: 'app-navigation',
   standalone: true,
-  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputDirective],
+  host: { '[class.with-floating-actions]': 'isReady()' },
+  imports: [NoahPageHeadingComponent, NoahButtonComponent, NoahInputComponent, NoahTableComponent],
   templateUrl: './navigation.component.html',
   styleUrl: './navigation.component.scss',
 })
 export class NavigationComponent {
   private readonly catalog = inject(CatalogService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly controller = new AbortController();
+  private readonly draftGroups = signal<DraftGroup[] | null>(null);
+  private readonly systemOptions = signal<readonly NoahSelectOption[]>([]);
+  private savedGroups: DraftGroup[] = [];
   private key = 0;
   private pointer: PointerDrag | null = null;
-  private ignoreClick = false;
   private readonly motions = new Map<string, Animation>();
+  @ViewChild('activeField', { read: ElementRef }) private activeField?: ElementRef<HTMLElement>;
 
   get portalHome(): string {
     return portalEntry(this.systems.length ? { systems: this.systems } : null);
@@ -49,9 +56,19 @@ export class NavigationComponent {
   readonly status = signal('讀取中');
   readonly isSaving = signal(false);
   readonly isReady = signal(false);
+  readonly isEditing = computed(() => this.draftGroups() !== null);
   readonly selectedKey = signal<number | null>(null);
+  readonly activeFieldKey = signal<number | null>(null);
+  readonly isGroupPickerOpen = signal(false);
+  readonly availableSystemOptions = computed(() => {
+    const assigned = new Set(this.groups.map((group) => group.app));
+    return this.systemOptions().filter(({ value }) => value !== 'noah-portal' && !assigned.has(value));
+  });
   systems: ManagedSystem[] = [];
-  groups: DraftGroup[] = [];
+
+  get groups(): DraftGroup[] {
+    return this.draftGroups() ?? this.savedGroups;
+  }
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -66,19 +83,34 @@ export class NavigationComponent {
     return this.groups.find((group) => group.key === key) ?? null;
   }
 
-  selectedIndex(): number {
-    const key = this.selectedKey();
-    return this.groups.findIndex((group) => group.key === key);
+  edit(): void {
+    if (!this.isReady() || this.isEditing()) return;
+    this.status.set('');
+    this.draftGroups.set(this.savedGroups.map((group) => ({
+      ...group,
+      sections: group.sections.map((section) => ({
+        ...section,
+        links: section.links.map((link) => ({ ...link })),
+      })),
+    })));
+  }
+
+  cancel(): void {
+    if (!this.isEditing() || this.isSaving()) return;
+    this.closeEditor();
+    if (!this.selected()) this.selectedKey.set(this.savedGroups[0]?.key ?? null);
+    this.status.set('');
   }
 
   async save(): Promise<void> {
+    if (!this.isEditing() || this.isSaving()) return;
     this.isSaving.set(true);
     this.status.set('');
     try {
       const saved = await this.catalog.saveNav(this.payload(), this.controller.signal);
-      this.catalog.preview.set(null);
-      this.catalog.refresh();
       this.apply(saved.systems, saved.groups);
+      this.closeEditor();
+      this.catalog.refresh();
       this.status.set('已儲存。');
     } catch (error) {
       this.status.set(error instanceof Error ? error.message : '儲存失敗，請稍後再試。');
@@ -87,65 +119,111 @@ export class NavigationComponent {
     }
   }
 
+  private closeEditor(): void {
+    const pointer = this.pointer;
+    this.pointer = null;
+    const host = this.host.nativeElement;
+    if (pointer && host.hasPointerCapture(pointer.id)) host.releasePointerCapture(pointer.id);
+    for (const motion of this.motions.values()) motion.cancel();
+    this.motions.clear();
+    this.activeFieldKey.set(null);
+    this.closeGroupPicker();
+    this.draftGroups.set(null);
+    this.catalog.preview.set(null);
+  }
+
   selectGroup(key: number): void {
-    if (this.ignoreClick) {
-      this.ignoreClick = false;
-      return;
-    }
+    if (this.selectedKey() === key) return;
+    this.activeFieldKey.set(null);
+    this.closeGroupPicker();
     this.selectedKey.set(key);
   }
 
-  addGroup(): void {
+  activateField(key: number): void {
+    if (!this.isEditing() || this.isSaving() || this.activeFieldKey() === key) return;
+    this.activeFieldKey.set(key);
+    afterNextRender(() => {
+      if (this.activeFieldKey() === key && !this.isSaving()) {
+        this.activeField?.nativeElement.querySelector('input')?.focus();
+      }
+    }, { injector: this.injector });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    this.closeGroupPicker();
+    const active = this.activeFieldKey();
+    if (active === null || this.isSaving()) return;
+
+    const staysOpen = event.composedPath().some((target) =>
+      target instanceof Element && (
+        target.getAttribute('data-inline-editor') === String(active) ||
+        target.hasAttribute('data-opens-inline-editor')
+      ),
+    );
+    if (!staysOpen) this.activeFieldKey.set(null);
+  }
+
+  closeGroupPicker(): void {
+    this.isGroupPickerOpen.set(false);
+  }
+
+  toggleGroupPicker(): void {
+    this.isGroupPickerOpen.update((open) => !open);
+  }
+
+  addGroup(app: string): void {
+    const draft = this.draftGroups();
+    if (!draft || this.isSaving()) return;
+    const system = this.availableSystemOptions().find((option) => option.value === app);
+    if (!system) return;
     const group: DraftGroup = {
       key: this.nextKey(),
-      label: '',
-      app: '',
+      label: system.label,
+      app: system.value,
       sections: [{ key: this.nextKey(), title: '', links: [] }],
     };
-    this.groups.push(group);
-    this.selectedKey.set(group.key);
-    this.syncPreview();
-  }
-
-  moveSelected(step: number): void {
-    const index = this.selectedIndex();
-    this.animateMove('.order [data-flip-key]', '', () => {
-      this.place(this.groups, index, index + step);
-    });
-    this.syncPreview();
-  }
-
-  removeSelected(): void {
-    const index = this.selectedIndex();
-    if (index < 0) return;
-    this.groups.splice(index, 1);
-    const next = this.groups[index] ?? this.groups[index - 1] ?? null;
-    this.selectedKey.set(next?.key ?? null);
+    this.draftGroups.set([...draft, group]);
+    this.selectGroup(group.key);
+    this.activateField(group.sections[0].key);
     this.syncPreview();
   }
 
   addSection(group: DraftGroup): void {
-    group.sections.push({ key: this.nextKey(), title: '', links: [] });
+    const section = { key: this.nextKey(), title: '', links: [] };
+    group.sections.push(section);
+    this.activateField(section.key);
     this.syncPreview();
   }
 
   removeSection(group: DraftGroup, index: number): void {
+    const section = group.sections[index];
+    const active = this.activeFieldKey();
+    if (section.key === active || section.links.some((link) => link.key === active)) this.activeFieldKey.set(null);
     group.sections.splice(index, 1);
     this.syncPreview();
   }
 
   addLink(section: DraftSection): void {
-    section.links.push({ key: this.nextKey(), label: '', app: '', path: '' });
+    const link = { key: this.nextKey(), label: '', path: '' };
+    section.links.push(link);
+    this.activateField(link.key);
     this.syncPreview();
   }
 
   removeLink(section: DraftSection, index: number): void {
+    if (section.links[index].key === this.activeFieldKey()) this.activeFieldKey.set(null);
+    this.closeGroupPicker();
     section.links.splice(index, 1);
     this.syncPreview();
   }
 
   systemName(repo: string): string {
     return this.systems.find((system) => system.repo === repo)?.name ?? '';
+  }
+
+  groupName(group: DraftGroup): string {
+    return this.systemName(group.app) || group.label || '未命名群組';
   }
 
   holdingGroup(index: number): boolean {
@@ -158,42 +236,36 @@ export class NavigationComponent {
     return !!pointer?.moved && pointer.kind === 'section' && pointer.index === index;
   }
 
-  holdingLink(index: number): boolean {
+  holdingLink(sectionKey: number, index: number): boolean {
     const pointer = this.pointer;
-    return !!pointer?.moved && pointer.kind === 'link' && pointer.index === index;
+    return !!pointer?.moved && pointer.kind === 'link' && pointer.section.key === sectionKey && pointer.index === index;
   }
 
   startGroupPointer(index: number, event: PointerEvent): void {
-    this.capture(event, { kind: 'group', index, startX: event.clientX, startY: event.clientY, moved: false });
+    this.startPointer(event, { kind: 'group', index });
   }
 
-  moveGroupPointer(event: PointerEvent): void {
-    const pointer = this.pointer;
-    if (!pointer || pointer.kind !== 'group' || !this.pastThreshold(pointer, event)) return;
+  private moveGroupPointer(pointer: PointerDrag, event: PointerEvent): void {
     const to = this.stepToward(event, '.order [data-flip-key]', 'data-order-index', pointer.index);
     if (to === null) return;
     this.slide(this.groups, pointer, to, '.order [data-flip-key]', 'data-order-index');
   }
 
   startSectionPointer(group: DraftGroup, index: number, event: PointerEvent): void {
-    this.capture(event, { kind: 'section', group, index, startX: event.clientX, startY: event.clientY, moved: false });
+    this.startPointer(event, { kind: 'section', group, index });
   }
 
-  moveSectionPointer(event: PointerEvent): void {
-    const pointer = this.pointer;
-    if (!pointer || pointer.kind !== 'section' || !this.pastThreshold(pointer, event)) return;
+  private moveSectionPointer(pointer: Extract<PointerDrag, { kind: 'section' }>, event: PointerEvent): void {
     const to = this.stepToward(event, '.panel > .section', 'data-section-index', pointer.index);
     if (to === null) return;
     this.slide(pointer.group.sections, pointer, to, '.panel > .section', 'data-section-index');
   }
 
   startLinkPointer(section: DraftSection, index: number, event: PointerEvent): void {
-    this.capture(event, { kind: 'link', section, index, startX: event.clientX, startY: event.clientY, moved: false });
+    this.startPointer(event, { kind: 'link', section, index });
   }
 
-  moveLinkPointer(event: PointerEvent): void {
-    const pointer = this.pointer;
-    if (!pointer || pointer.kind !== 'link' || !this.pastThreshold(pointer, event)) return;
+  private moveLinkPointer(pointer: Extract<PointerDrag, { kind: 'link' }>, event: PointerEvent): void {
     const to = this.stepToward(
       event,
       `.section__links [data-section-key="${pointer.section.key}"]`,
@@ -210,17 +282,44 @@ export class NavigationComponent {
     );
   }
 
-  stopPointer(): void {
-    if (this.pointer?.moved) {
-      this.ignoreClick = true;
-      this.syncPreview();
+  @HostListener('document:pointermove', ['$event'])
+  movePointer(event: PointerEvent): void {
+    const pointer = this.pointer;
+    if (!pointer || event.pointerId !== pointer.id || this.isSaving()) return;
+    if (event.buttons === 0) {
+      this.stopPointer();
+      return;
     }
+    if (!this.markDragging(pointer, event)) return;
+
+    switch (pointer.kind) {
+      case 'group': this.moveGroupPointer(pointer, event); break;
+      case 'section': this.moveSectionPointer(pointer, event); break;
+      case 'link': this.moveLinkPointer(pointer, event); break;
+    }
+  }
+
+  @HostListener('document:pointerup', ['$event'])
+  @HostListener('document:pointercancel', ['$event'])
+  releasePointer(event: PointerEvent): void {
+    if (event.pointerId === this.pointer?.id) this.stopPointer();
+  }
+
+  @HostListener('lostpointercapture', ['$event'])
+  losePointerCapture(event: PointerEvent): void {
+    if (event.target === this.host.nativeElement) this.releasePointer(event);
+  }
+
+  @HostListener('window:blur')
+  stopPointer(): void {
+    const moved = this.pointer?.moved;
     this.pointer = null;
+    if (moved) this.syncPreview();
   }
 
   text(event: Event): string {
     const target = event.target;
-    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) return target.value;
+    if (target instanceof HTMLInputElement) return target.value;
     return '';
   }
 
@@ -228,24 +327,24 @@ export class NavigationComponent {
     this.syncPreview();
   }
 
-  private capture(event: PointerEvent, pointer: PointerDrag): void {
-    if (event.button !== 0) return;
-    const target = event.currentTarget;
-    if (!(target instanceof HTMLElement)) return;
-    try {
-      target.setPointerCapture(event.pointerId);
-    } catch {
-      // 不是真實指標時抓不到，放開時仍會清掉
-    }
-    this.pointer = pointer;
+  private startPointer(event: PointerEvent, target: PointerTarget): void {
+    if (!this.isEditing() || this.isSaving() || this.pointer || event.button !== 0) return;
+    this.pointer = { ...target, id: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
   }
 
-  private pastThreshold(pointer: PointerDrag, event: PointerEvent): boolean {
+  private markDragging(pointer: PointerDrag, event: PointerEvent): boolean {
     if (pointer.moved) return true;
     const dx = event.clientX - pointer.startX;
     const dy = event.clientY - pointer.startY;
     if (dx * dx + dy * dy < 9) return false;
     pointer.moved = true;
+    this.closeGroupPicker();
+    // Capture on the host after the threshold so reordering rows cannot drop it.
+    try {
+      this.host.nativeElement.setPointerCapture(pointer.id);
+    } catch {
+      // Document listeners still handle moves and release if capture is unavailable.
+    }
     return true;
   }
 
@@ -311,6 +410,7 @@ export class NavigationComponent {
     }
     mutate();
     requestAnimationFrame(() => {
+      if (!this.isEditing()) return;
       for (const element of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
         const key = element.getAttribute('data-flip-key');
         const previous = key ? before.get(key) : undefined;
@@ -340,7 +440,7 @@ export class NavigationComponent {
   private apply(systems: ManagedSystem[], groups: NavGroupRecord[]): void {
     const previous = this.selected()?.app ?? '';
     this.systems = systems;
-    this.groups = groups.map((group) => ({
+    this.savedGroups = groups.map((group) => ({
       key: this.nextKey(),
       label: group.label,
       app: group.app ?? '',
@@ -350,13 +450,13 @@ export class NavigationComponent {
         links: section.links.map((link) => ({
           key: this.nextKey(),
           label: link.label,
-          app: link.app ?? '',
           path: link.path,
         })),
       })),
     }));
-    const match = previous ? this.groups.find((group) => group.app === previous) : undefined;
-    this.selectedKey.set(match?.key ?? this.groups[0]?.key ?? null);
+    this.systemOptions.set(systems.map(({ repo, name }) => ({ value: repo, label: name })));
+    const match = previous ? this.savedGroups.find((group) => group.app === previous) : undefined;
+    this.selectedKey.set(match?.key ?? this.savedGroups[0]?.key ?? null);
     this.isReady.set(true);
   }
 
@@ -368,7 +468,7 @@ export class NavigationComponent {
         title: section.title.trim(),
         links: section.links.map((link) => ({
           label: link.label.trim(),
-          app: link.app || null,
+          app: group.app || null,
           path: link.path.trim(),
         })),
       })),
@@ -376,7 +476,7 @@ export class NavigationComponent {
   }
 
   private syncPreview(): void {
-    if (!this.isReady()) return;
+    if (!this.isEditing() || this.isSaving()) return;
     this.catalog.preview.set(this.payload());
   }
 

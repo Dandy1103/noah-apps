@@ -1,115 +1,177 @@
 <noah-page-heading title="導覽" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '導覽' }]" />
 
-<div class="toolbar">
-  <noah-button message="儲存" (click)="save()" [disabled]="!isReady() || isSaving()" />
-  <button type="button" class="app-button app-button--secondary" (click)="addGroup()" [disabled]="!isReady() || isSaving()">新增群組</button>
-  <button type="button" class="app-button app-button--secondary" (click)="moveSelected(-1)" [disabled]="selectedIndex() <= 0">左移</button>
-  <button type="button" class="app-button app-button--secondary" (click)="moveSelected(1)" [disabled]="selectedIndex() < 0 || selectedIndex() === groups.length - 1">右移</button>
-  @if (status()) {
-    <p class="status">{{ status() }}</p>
-  }
-</div>
-
-<section class="order" aria-label="導覽列順序">
-  <ol>
-    @for (group of groups; track group.key; let index = $index) {
-      <li [attr.data-order-index]="index" [attr.data-flip-key]="group.key">
-        <button type="button"
-          [class.is-current]="group.key === selectedKey()"
-          [class.is-holding]="holdingGroup(index)"
-          [attr.aria-pressed]="group.key === selectedKey()"
-          (click)="selectGroup(group.key)"
-          (pointerdown)="startGroupPointer(index, $event)"
-          (pointermove)="moveGroupPointer($event)"
-          (pointerup)="stopPointer()"
-          (pointercancel)="stopPointer()">
-          {{ systemName(group.app) || '未命名' }}
-        </button>
-      </li>
+<p class="status" role="status">{{ isSaving() ? '儲存中…' : status() }}</p>
+@if (isReady()) {
+  <div class="floating-actions">
+    <noah-button [message]="isEditing() ? '儲存' : '編輯'"
+      (click)="isEditing() ? save() : edit()" [disabled]="isSaving()" />
+    @if (isEditing()) {
+      <noah-button message="取消" variant="secondary" (click)="cancel()" [disabled]="isSaving()" />
     }
-  </ol>
-</section>
+  </div>
 
-@if (selected(); as group) {
-  <section class="panel">
-    <div class="panel__bar">
-      <label class="editor-field">
-        <span>屬於</span>
-        <select class="bar-control" (change)="group.app = text($event); note()">
-          @if (!group.app) {
-            <option value="" selected>選擇系統</option>
+  <div class="navigation-layout" [attr.inert]="isSaving() ? '' : null">
+    <aside class="order" aria-labelledby="navigation-groups-title" [class.is-editing]="isEditing()">
+      <h2 id="navigation-groups-title">導覽群組</h2>
+      <ol>
+        @for (group of groups; track group.key; let index = $index) {
+          <li [attr.data-order-index]="index" [attr.data-flip-key]="group.key">
+            <button class="order__group" type="button" aria-controls="navigation-group-detail"
+              [class.is-current]="group.key === selectedKey()"
+              [class.is-holding]="holdingGroup(index)"
+              [attr.aria-pressed]="group.key === selectedKey()"
+              (click)="selectGroup(group.key)"
+              (pointerdown)="startGroupPointer(index, $event)">
+              {{ groupName(group) }}
+            </button>
+          </li>
+        } @empty {
+          <li class="empty-state">目前沒有群組。</li>
+        }
+      </ol>
+      @if (isEditing() && availableSystemOptions().length) {
+        <div class="order__add-group" (click)="$event.stopPropagation()"
+          (keydown.escape)="isGroupPickerOpen.set(false)">
+          <noah-button message="新增群組" variant="secondary" size="small" (click)="toggleGroupPicker()" />
+          @if (isGroupPickerOpen()) {
+            <ul class="group-options" aria-label="可新增的系統">
+              @for (option of availableSystemOptions(); track option.value) {
+                <li><button type="button" (click)="addGroup(option.value)">{{ option.label }}</button></li>
+              }
+            </ul>
           }
-          @for (system of systems; track system.repo) {
-            <option [value]="system.repo" [selected]="group.app === system.repo">{{ system.name }}</option>
-          }
-        </select>
-      </label>
-      <button type="button" class="app-button app-button--danger" (click)="removeSelected()">刪除群組</button>
-      <button type="button" class="app-button app-button--secondary" (click)="addSection(group)">新增分組</button>
-    </div>
-
-    @for (section of group.sections; track section.key; let sectionIndex = $index) {
-      <section class="section" [attr.data-section-index]="sectionIndex" [attr.data-flip-key]="section.key" [class.is-holding]="holdingSection(sectionIndex)">
-        <div class="section__head">
-          <button type="button" class="handle" aria-label="排序"
-            (pointerdown)="startSectionPointer(group, sectionIndex, $event)"
-            (pointermove)="moveSectionPointer($event)"
-            (pointerup)="stopPointer()"
-            (pointercancel)="stopPointer()">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <circle cx="5" cy="3.5" r="1.15" />
-              <circle cx="11" cy="3.5" r="1.15" />
-              <circle cx="5" cy="8" r="1.15" />
-              <circle cx="11" cy="8" r="1.15" />
-              <circle cx="5" cy="12.5" r="1.15" />
-              <circle cx="11" cy="12.5" r="1.15" />
-            </svg>
-          </button>
-          <input noahInput class="section__title" [value]="section.title" (input)="section.title = text($event); note()" placeholder="分組名稱" autocomplete="off" />
-          <button type="button" class="app-button app-button--danger" (click)="removeSection(group, sectionIndex)">刪除分組</button>
         </div>
-        @if (section.links.length) {
-          <div class="section__links">
-            @for (link of section.links; track link.key; let linkIndex = $index) {
-              <div class="panel__bar" [attr.data-link-index]="linkIndex" [attr.data-section-key]="section.key" [attr.data-flip-key]="link.key" [class.is-holding]="holdingLink(linkIndex)">
-                <button type="button" class="handle" aria-label="排序"
-                  (pointerdown)="startLinkPointer(section, linkIndex, $event)"
-                  (pointermove)="moveLinkPointer($event)"
-                  (pointerup)="stopPointer()"
-                  (pointercancel)="stopPointer()">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <circle cx="5" cy="3.5" r="1.15" />
-                    <circle cx="11" cy="3.5" r="1.15" />
-                    <circle cx="5" cy="8" r="1.15" />
-                    <circle cx="11" cy="8" r="1.15" />
-                    <circle cx="5" cy="12.5" r="1.15" />
-                    <circle cx="11" cy="12.5" r="1.15" />
-                  </svg>
-                </button>
-                <label class="editor-field">
-                  <span>名稱</span>
-                  <input noahInput class="bar-control" [value]="link.label" (input)="link.label = text($event); note()" autocomplete="off" />
-                </label>
-                <label class="editor-field">
-                  <span>系統</span>
-                  <select class="bar-control" (change)="link.app = text($event); note()">
-                    <option value="" [selected]="link.app === ''">不連結</option>
-                    @for (system of systems; track system.repo) {
-                      <option [value]="system.repo" [selected]="link.app === system.repo">{{ system.name }}</option>
+      }
+    </aside>
+
+    <section class="panel" id="navigation-group-detail" aria-labelledby="navigation-group-title">
+      @if (selected(); as group) {
+        <header class="panel__header">
+          <h2 id="navigation-group-title">{{ groupName(group) }}</h2>
+          @if (isEditing()) {
+            <noah-button message="新增分組" variant="secondary" size="small" data-opens-inline-editor (click)="addSection(group)" />
+          }
+        </header>
+
+        @for (section of group.sections; track section.key; let sectionIndex = $index) {
+          <section class="section" [attr.aria-labelledby]="'navigation-section-' + section.key"
+            [attr.data-section-index]="sectionIndex" [attr.data-flip-key]="section.key" [class.is-holding]="holdingSection(sectionIndex)">
+            <div class="section__head">
+              <div class="section__label">
+                @if (isEditing()) {
+                  <button type="button" class="handle" aria-label="拖曳排序分組"
+                    (pointerdown)="startSectionPointer(group, sectionIndex, $event)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <circle cx="5" cy="3.5" r="1.15" />
+                      <circle cx="11" cy="3.5" r="1.15" />
+                      <circle cx="5" cy="8" r="1.15" />
+                      <circle cx="11" cy="8" r="1.15" />
+                      <circle cx="5" cy="12.5" r="1.15" />
+                      <circle cx="11" cy="12.5" r="1.15" />
+                    </svg>
+                  </button>
+                }
+                <h3 class="section__heading" [class.visually-hidden]="activeFieldKey() === section.key" [id]="'navigation-section-' + section.key">
+                  @if (isEditing() && activeFieldKey() !== section.key) {
+                    <button type="button" class="text-edit" [attr.data-inline-editor]="section.key"
+                      (click)="activateField(section.key)">{{ section.title || '未命名分組' }}</button>
+                  } @else {
+                    {{ section.title || '未命名分組' }}
+                  }
+                </h3>
+                @if (isEditing() && activeFieldKey() === section.key) {
+                  <noah-input #activeField class="section__title" label="分組名稱" [value]="section.title"
+                    [attr.data-inline-editor]="section.key"
+                    (input)="section.title = text($event); note()" />
+                }
+              </div>
+              @if (isEditing()) {
+                <noah-button class="delete-icon" title="刪除分組" message="刪除分組" variant="danger"
+                  (click)="removeSection(group, sectionIndex)" />
+              }
+            </div>
+
+            @if (section.links.length) {
+              <noah-table class="section__links">
+                <table class="outline-links" [class.is-editing]="isEditing()" [attr.aria-labelledby]="'navigation-section-' + section.key">
+                  <thead>
+                    <tr>
+                      @if (isEditing()) {
+                        <th scope="col" class="outline-links__handle"><span class="visually-hidden">排序</span></th>
+                      }
+                      <th scope="col" class="outline-links__name-column">連結名稱</th>
+                      <th scope="col">路徑</th>
+                      @if (isEditing()) {
+                        <th scope="col" class="outline-links__actions"><span class="visually-hidden">操作</span></th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (link of section.links; track link.key; let linkIndex = $index) {
+                      <tr [attr.data-link-index]="linkIndex" [attr.data-section-key]="section.key" [attr.data-flip-key]="link.key"
+                        [attr.data-inline-editor]="link.key"
+                        [class.is-holding]="holdingLink(section.key, linkIndex)" [class.is-active]="activeFieldKey() === link.key"
+                        (click)="activateField(link.key)">
+                        @if (isEditing()) {
+                          <td>
+                            <button type="button" class="handle" [attr.aria-label]="'拖曳排序：' + (link.label || '未命名連結')"
+                              (pointerdown)="startLinkPointer(section, linkIndex, $event)" (click)="$event.stopPropagation()">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <circle cx="5" cy="3.5" r="1.15" />
+                                <circle cx="11" cy="3.5" r="1.15" />
+                                <circle cx="5" cy="8" r="1.15" />
+                                <circle cx="11" cy="8" r="1.15" />
+                                <circle cx="5" cy="12.5" r="1.15" />
+                                <circle cx="11" cy="12.5" r="1.15" />
+                              </svg>
+                            </button>
+                          </td>
+                        }
+                        <td class="outline-links__name">
+                          @if (activeFieldKey() === link.key) {
+                            <noah-input #activeField class="table-input" label="連結名稱" [value]="link.label"
+                              (input)="link.label = text($event); note()" />
+                          } @else if (isEditing()) {
+                            <button type="button" class="text-edit" (click)="activateField(link.key)">{{ link.label || '未命名連結' }}</button>
+                          } @else {
+                            {{ link.label || '未命名連結' }}
+                          }
+                        </td>
+                        <td>
+                          @if (activeFieldKey() === link.key) {
+                            <noah-input class="table-input" label="路徑" [value]="link.path" (input)="link.path = text($event); note()" />
+                          } @else {
+                            {{ link.path || '—' }}
+                          }
+                        </td>
+                        @if (isEditing()) {
+                          <td>
+                            <noah-button class="delete-icon" title="刪除連結" message="刪除連結" variant="danger"
+                              (click)="$event.stopPropagation(); removeLink(section, linkIndex)" />
+                          </td>
+                        }
+                      </tr>
                     }
-                  </select>
-                </label>
-                <label class="editor-field">
-                  <span>路徑</span>
-                  <input noahInput class="bar-control" [value]="link.path" (input)="link.path = text($event); note()" autocomplete="off" />
-                </label>
-                <button type="button" class="app-button app-button--danger" (click)="removeLink(section, linkIndex)">刪除</button>
+                  </tbody>
+                </table>
+              </noah-table>
+            } @else {
+              <p class="empty-state">此分組沒有連結。</p>
+            }
+
+            @if (isEditing()) {
+              <div class="section__footer">
+                <noah-button message="新增連結" variant="secondary" size="small" data-opens-inline-editor (click)="addLink(section)" />
               </div>
             }
-          </div>
+          </section>
+        } @empty {
+          <p class="empty-state">此群組沒有分組。</p>
         }
-        <button type="button" class="app-button app-button--secondary" (click)="addLink(section)">新增連結</button>
-      </section>
-    }
-  </section>
+      } @else {
+        <h2 id="navigation-group-title">群組內容</h2>
+        <p class="empty-state">選取群組後可查看分組和連結。</p>
+      }
+    </section>
+  </div>
 }

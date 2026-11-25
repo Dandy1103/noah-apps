@@ -1,0 +1,17 @@
+.floating-actions {
+  position: fixed;
+  z-index: 10;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+@mixin reserve-space {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}

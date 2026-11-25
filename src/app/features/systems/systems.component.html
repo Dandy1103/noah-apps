@@ -1,48 +1,49 @@
 <noah-page-heading title="系統清單" [breadcrumbs]="[{ label: '首頁', href: portalHome }, { label: '系統清單' }]" />
-<div class="toolbar">
-  @if (canEdit()) {
-    <noah-button message="儲存" (click)="save()" [disabled]="!canEdit() || isSaving()" />
-  }
-  @if (status()) {
-    <p class="status">{{ status() }}</p>
-  }
-</div>
-<ul class="systems">
-  @for (app of systems; track app.repo) {
+<p class="status" role="status">{{ isSaving() ? '儲存中…' : status() }}</p>
+@if (canEdit()) {
+  <div class="floating-actions">
+    <noah-button [message]="isEditing() ? '儲存' : '編輯'"
+      (click)="isEditing() ? save() : edit()" [disabled]="isSaving()" />
+    @if (isEditing()) {
+      <noah-button message="取消" variant="secondary" (click)="cancel()" [disabled]="isSaving()" />
+    }
+  </div>
+}
+<ul class="systems" [class.systems--with-floating-actions]="canEdit()">
+  @for (app of displayedSystems; track app.repo) {
     <li class="system" [class.is-offline]="!app.online">
-      <div class="system__head">
-        @if (canEdit()) {
-          <input noahInput class="system__name" [value]="app.name" (input)="app.name = text($event)" [attr.aria-label]="app.name || app.repo" autocomplete="off" />
+      <h2 class="system__title">
+        {{ app.repo === 'noah-portal' ? '首頁' : app.name.trim() }} <span class="system__title-en" lang="en">{{ englishSystemName(app.repo) }}</span>
+      </h2>
+      <div class="system__fields" [attr.inert]="isSaving() ? '' : null">
+        @if (isEditing()) {
+          <noah-input class="system__field--name" label="系統名稱" [value]="app.name" (input)="app.name = text($event)" />
         } @else {
-          <p class="system__name system__name--text">{{ app.name }}</p>
+          <div class="editor-field system__field--name">
+            <span>系統名稱</span>
+            <span class="editor-field__value" [title]="app.name">{{ app.name }}</span>
+          </div>
         }
-        <span class="system__repo">{{ app.repo }}</span>
-        @if (canEdit()) {
-          <select class="bar-control system__status" [attr.aria-label]="(app.name || app.repo) + '的狀態'" (change)="app.online = text($event) === 'true'">
-            <option value="true" [selected]="app.online">上線</option>
-            <option value="false" [selected]="!app.online">未開</option>
-          </select>
+        @if (isEditing()) {
+          <noah-input class="system__field--url" label="網址" [value]="app.url" (input)="app.url = text($event)" placeholder="還沒有網址" />
         } @else {
-          <span class="system__status-text">{{ app.online ? '上線' : '未開' }}</span>
+          <div class="editor-field system__field--url">
+            <span>網址</span>
+            <span class="editor-field__value" [title]="app.url">{{ app.url || '還沒有網址' }}</span>
+          </div>
         }
-      </div>
-      <div class="system__fields">
-        <label class="editor-field">
-          <span>網址</span>
-          @if (canEdit()) {
-            <input noahInput class="bar-control" [value]="app.url" (input)="app.url = text($event)" placeholder="還沒有網址" autocomplete="off" />
-          } @else {
-            <span class="editor-field__value">{{ app.url || '還沒有網址' }}</span>
-          }
-        </label>
-        <label class="editor-field">
-          <span>誰看得到</span>
-          @if (canEdit()) {
-            <input noahInput class="bar-control" [value]="app.audience" (input)="app.audience = text($event)" autocomplete="off" />
-          } @else {
-            <span class="editor-field__value">{{ app.audience }}</span>
-          }
-        </label>
+        @if (isEditing()) {
+          <noah-select class="system__field--status" label="上線狀態"
+            [options]="statusOptions" [value]="app.online ? 'true' : 'false'"
+            (valueChange)="app.online = $event === 'true'" />
+        } @else {
+          <div class="editor-field system__field--status">
+            <span>上線狀態</span>
+            <span class="editor-field__value editor-field__value--status" [class.is-online]="app.online">
+              {{ app.online ? '上線' : '未開' }}
+            </span>
+          </div>
+        }
       </div>
     </li>
   }
