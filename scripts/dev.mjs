@@ -6,8 +6,10 @@ import { join } from 'node:path';
 
 const route = process.argv[2];
 const remotePort = Number(process.argv[3]);
+const localUi = process.argv.includes('--ui-local');
+const noOpen = process.argv.includes('--no-open');
 if (!route || !Number.isInteger(remotePort) || remotePort < 1 || remotePort > 65535) {
-  console.error('用法：node scripts/dev.mjs <路由> <remote port>');
+  console.error('用法：node scripts/dev.mjs <路由> <remote port> [--ui-local]');
   process.exit(1);
 }
 
@@ -19,18 +21,20 @@ const children = new Set();
 let stopping = false;
 
 function portOpen(port) {
-  return new Promise((resolve) => {
-    const socket = createConnection({ port, host: '127.0.0.1' });
+  const probe = (host) => new Promise((resolve, reject) => {
+    const socket = createConnection({ port, host });
     const finish = (open) => {
       socket.removeAllListeners();
       socket.destroy();
-      resolve(open);
+      if (open) resolve();
+      else reject();
     };
     socket.setTimeout(400);
     socket.once('connect', () => finish(true));
     socket.once('timeout', () => finish(false));
     socket.once('error', () => finish(false));
   });
+  return Promise.any([probe('127.0.0.1'), probe('::1')]).then(() => true, () => false);
 }
 
 function stop(code = 0) {
@@ -41,7 +45,11 @@ function stop(code = 0) {
 }
 
 function launch(command, args, cwd) {
-  const child = spawn(command, args, { cwd, stdio: 'inherit' });
+  const child = spawn(command, args, {
+    cwd,
+    env: localUi ? { ...process.env, NOAH_UI_LOCAL: '1' } : process.env,
+    stdio: 'inherit',
+  });
   children.add(child);
   child.on('exit', (code, signal) => {
     children.delete(child);
@@ -106,14 +114,36 @@ function postShellReload() {
 function watchRebuild(reload) {
   let text = '';
   let waiting = false;
+  const completedMarkers = [
+    'Done!',
+    'Application bundle generation complete.',
+    'Browser application bundle generation complete.',
+    'Compiled successfully.',
+  ];
+  const failedMarkers = [
+    'Application bundle generation failed.',
+    'Browser application bundle generation failed.',
+    'Failed to compile.',
+  ];
   return (chunk) => {
     text += chunk.toString();
     if (text.length > 8000) text = text.slice(-8000);
     const started = text.lastIndexOf('Building federation artefacts');
     if (started < 0) return;
-    const done = text.indexOf('Done!', started);
-    if (done < 0) return;
-    text = text.slice(done + 'Done!'.length);
+    const failed = failedMarkers
+      .map((marker) => text.indexOf(marker, started))
+      .filter((index) => index >= 0)
+      .sort((left, right) => left - right)[0];
+    const completed = completedMarkers
+      .map((marker) => ({ marker, index: text.indexOf(marker, started) }))
+      .filter(({ index }) => index >= 0)
+      .sort((left, right) => left.index - right.index)[0];
+    if (failed !== undefined && (!completed || failed < completed.index)) {
+      text = text.slice(failed);
+      return;
+    }
+    if (!completed) return;
+    text = text.slice(completed.index + completed.marker.length);
     if (waiting) return;
     waiting = true;
     setTimeout(() => {
@@ -125,7 +155,13 @@ function watchRebuild(reload) {
 }
 
 function launchApp(reload) {
-  const child = spawn('npx', ['ng', 'serve'], { cwd: appRoot, stdio: ['inherit', 'pipe', 'pipe'] });
+  const args = ['ng', 'serve'];
+  if (localUi) args.push('--configuration', 'ui-local');
+  const child = spawn('npx', args, {
+    cwd: appRoot,
+    env: localUi ? { ...process.env, NOAH_UI_LOCAL: '1' } : process.env,
+    stdio: ['inherit', 'pipe', 'pipe'],
+  });
   children.add(child);
   const watch = watchRebuild(reload);
   const forward = (stream, chunk) => {
@@ -150,11 +186,16 @@ if (!existsSync(join(shellRoot, 'package.json'))) {
   console.error('找不到旁邊的 noah-shell。');
   process.exit(1);
 }
-if (shellAlreadyUp) console.log('Shell 已在 4200，沿用。');
-else console.log('Shell 還沒開，一起啟動。');
+if (shellAlreadyUp) {
+  console.log(localUi
+    ? 'Shell 已在 4200，沿用現有服務；要讓 Shell 也載入本機 UI，請先用 npm run start:ui-local 啟動 Shell。'
+    : 'Shell 已在 4200，沿用。');
+} else {
+  console.log('Shell 還沒開，一起啟動。');
+}
 
 launchApp(reloadShell);
-if (!shellAlreadyUp) launch('npm', ['start'], shellRoot);
+if (!shellAlreadyUp) launch('npm', localUi ? ['run', 'start:ui-local'] : ['start'], shellRoot);
 
 const started = Date.now();
 const timer = setInterval(async () => {
@@ -173,5 +214,5 @@ const timer = setInterval(async () => {
   }
   clearInterval(timer);
   console.log(`開 ${url}`);
-  if (process.platform === 'darwin') spawn('open', [url], { stdio: 'ignore', detached: true }).unref();
+  if (process.platform === 'darwin' && !noOpen) spawn('open', [url], { stdio: 'ignore', detached: true }).unref();
 }, 1000);

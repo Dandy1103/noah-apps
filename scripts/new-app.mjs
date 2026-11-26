@@ -560,14 +560,13 @@ export const routes: Routes = [
 
 function appComponent() {
   return `import { Component, signal } from '@angular/core';
-import { NoahLoadingMaskComponent } from '@dandy1103/ui';
 import { RouterOutlet } from '@angular/router';
 import { signedIn } from './require-session';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NoahLoadingMaskComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
 })
 export class AppComponent {
@@ -588,8 +587,6 @@ export class AppComponent {
 function appHtml() {
   return `@if (shellReady()) {
   <router-outlet />
-} @else {
-  <noah-loading-mask />
 }
 `;
 }
