@@ -3,7 +3,6 @@ import { createServer } from 'node:http';
 import { createConnection } from 'node:net';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const route = process.argv[2];
 const remotePort = Number(process.argv[3]);
@@ -13,7 +12,7 @@ if (!route || !Number.isInteger(remotePort) || remotePort < 1 || remotePort > 65
 }
 
 const reloadPort = 4390;
-const appRoot = fileURLToPath(new URL('..', import.meta.url));
+const appRoot = process.cwd();
 const shellRoot = join(appRoot, '..', 'noah-shell');
 const url = `http://localhost:4200/${route}`;
 const children = new Set();
