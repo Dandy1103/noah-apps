@@ -128,22 +128,23 @@ function watchRebuild(reload) {
   return (chunk) => {
     text += chunk.toString();
     if (text.length > 8000) text = text.slice(-8000);
-    const started = text.lastIndexOf('Building federation artefacts');
-    if (started < 0) return;
     const failed = failedMarkers
-      .map((marker) => text.indexOf(marker, started))
-      .filter((index) => index >= 0)
-      .sort((left, right) => left - right)[0];
-    const completed = completedMarkers
-      .map((marker) => ({ marker, index: text.indexOf(marker, started) }))
+      .map((marker) => ({ marker, index: text.indexOf(marker) }))
       .filter(({ index }) => index >= 0)
       .sort((left, right) => left.index - right.index)[0];
-    if (failed !== undefined && (!completed || failed < completed.index)) {
-      text = text.slice(failed);
-      return;
+    const completed = completedMarkers
+      .map((marker) => ({ marker, index: text.indexOf(marker) }))
+      .filter(({ index }) => index >= 0)
+      .sort((left, right) => left.index - right.index)[0];
+    if (failed && (!completed || failed.index < completed.index)) {
+      text = text.slice(failed.index + failed.marker.length);
     }
-    if (!completed) return;
-    text = text.slice(completed.index + completed.marker.length);
+    const nextCompleted = completedMarkers
+      .map((marker) => ({ marker, index: text.indexOf(marker) }))
+      .filter(({ index }) => index >= 0)
+      .sort((left, right) => left.index - right.index)[0];
+    if (!nextCompleted) return;
+    text = text.slice(nextCompleted.index + nextCompleted.marker.length);
     if (waiting) return;
     waiting = true;
     setTimeout(() => {
