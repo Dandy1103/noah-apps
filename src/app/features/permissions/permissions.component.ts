@@ -25,6 +25,7 @@ export class PermissionsComponent {
   readonly isAdmin = signal(false);
   readonly selectedAccount = signal<AccountPermission | null>(null);
   readonly editingPermissions = signal<string[]>([]);
+  readonly editingAdmin = signal(false);
   readonly filteredAccounts = computed(() => {
     const query = this.search().trim().toLocaleLowerCase();
     if (!query) return this.accounts();
@@ -41,9 +42,10 @@ export class PermissionsComponent {
   }
 
   editPermissions(account: AccountPermission): void {
-    if (this.isSaving() || account.admin || account.id === this.currentAccountId()) return;
+    if (this.isSaving() || (account.admin && !this.isAdmin()) || account.id === this.currentAccountId()) return;
     this.selectedAccount.set(account);
-    this.editingPermissions.set([...account.permissions]);
+    this.editingAdmin.set(account.admin);
+    this.editingPermissions.set(account.admin ? [] : [...account.permissions]);
   }
 
   closeEditor(): void {
@@ -58,6 +60,11 @@ export class PermissionsComponent {
       : permissions.filter((permission) => permission !== key));
   }
 
+  toggleAdmin(event: Event): void {
+    if (!(event.target instanceof HTMLInputElement) || !this.isAdmin()) return;
+    this.editingAdmin.set(event.target.checked);
+  }
+
   permissionLabel(key: string): string {
     return this.definitions().find((permission) => permission.key === key)?.label ?? key;
   }
@@ -67,8 +74,9 @@ export class PermissionsComponent {
     if (!selected || this.isSaving()) return;
     this.isSaving.set(true);
     try {
+      const update = { id: selected.id, permissions: this.editingPermissions() };
       const result = await this.loading.run(() => this.catalog.savePermissions([
-        { id: selected.id, permissions: this.editingPermissions() },
+        this.isAdmin() ? { ...update, admin: this.editingAdmin() } : update,
       ], this.controller.signal));
       if (this.controller.signal.aborted) return;
       this.accounts.set(result.accounts);

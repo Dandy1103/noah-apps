@@ -14,7 +14,7 @@
           <th scope="row"><span class="account-name">{{ account.name }}</span><span class="account-email">{{ account.email }}</span></th>
           <td class="permission-summary">
             @if (account.admin) {
-              <span class="permission-chip">管理員 · 預設擁有所有權限</span>
+              <span class="permission-chip">平台管理員 · 預設擁有所有權限</span>
             } @else if (account.permissions.length) {
               @for (permission of account.permissions; track permission) {
                 <span class="permission-chip">{{ permissionLabel(permission) }}</span>
@@ -24,7 +24,7 @@
             }
           </td>
           <td class="account-actions">
-            @if (!account.admin && account.id !== currentAccountId()) {
+            @if ((!account.admin || isAdmin()) && account.id !== currentAccountId()) {
               <noah-button message="編輯權限" variant="secondary" (click)="editPermissions(account)" [disabled]="isSaving()" />
             }
           </td>
@@ -50,10 +50,17 @@
         </button>
       </header>
       <p class="dialog-hint">勾選此帳號可使用的管理功能；一般公告和公告申請維持公開。</p>
+      @if (isAdmin()) {
+        <label class="admin-option">
+          <input type="checkbox" [checked]="editingAdmin()" [disabled]="isSaving()" (change)="toggleAdmin($event)" />
+          <span>平台管理員</span>
+          <small>平台管理員預設擁有所有權限，並可授予權限管理能力。</small>
+        </label>
+      }
       <div class="permission-options">
         @for (permission of definitions(); track permission.key) {
           <label class="permission-option">
-            <input type="checkbox" [checked]="editingPermissions().includes(permission.key)" [disabled]="isSaving() || (permission.adminOnly && !isAdmin())" (change)="togglePermission(permission.key, $event)" />
+            <input type="checkbox" [checked]="editingPermissions().includes(permission.key)" [disabled]="isSaving() || editingAdmin() || (permission.adminOnly && !isAdmin())" (change)="togglePermission(permission.key, $event)" />
             <span>{{ permission.label }}</span>
             <small>{{ permission.description }}</small>
           </label>

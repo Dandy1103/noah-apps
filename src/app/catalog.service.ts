@@ -89,7 +89,7 @@ export class CatalogService {
     return this.request<AppPermissions>('/api/apps/permissions', { method: 'GET', signal });
   }
 
-  savePermissions(accounts: Array<Pick<AccountPermission, 'id' | 'permissions'>>, signal?: AbortSignal): Promise<AppPermissions> {
+  savePermissions(accounts: Array<Pick<AccountPermission, 'id' | 'permissions'> & Partial<Pick<AccountPermission, 'admin'>>>, signal?: AbortSignal): Promise<AppPermissions> {
     return this.request<AppPermissions>('/api/apps/permissions', { method: 'PUT', body: JSON.stringify({ accounts }), signal });
   }
 
