@@ -79,7 +79,7 @@ export class PermissionsComponent {
         this.isAdmin() ? { ...update, admin: this.editingAdmin() } : update,
       ], this.controller.signal));
       if (this.controller.signal.aborted) return;
-      this.accounts.set(result.accounts);
+      this.accounts.set(this.visibleHumanAccounts(result.accounts));
       this.definitions.set(result.definitions);
       this.currentAccountId.set(result.currentAccountId);
       this.isAdmin.set(result.isAdmin);
@@ -96,12 +96,18 @@ export class PermissionsComponent {
     try {
       const permissions = await this.loading.run(() => this.catalog.loadPermissions(this.controller.signal));
       if (this.controller.signal.aborted) return;
-      this.accounts.set(permissions.accounts.map((account) => ({ ...account, permissions: [...account.permissions] })));
+      this.accounts.set(this.visibleHumanAccounts(permissions.accounts));
       this.definitions.set(permissions.definitions);
       this.currentAccountId.set(permissions.currentAccountId);
       this.isAdmin.set(permissions.isAdmin);
     } catch (error) {
       if (!this.controller.signal.aborted) this.status.set((error instanceof Error && error.message.trim()) || '無法讀取帳號權限，請確認權限 API 已啟動。');
     }
+  }
+
+  private visibleHumanAccounts(accounts: AccountPermission[]): AccountPermission[] {
+    return accounts
+      .filter((account) => !account.name.trim().toLocaleLowerCase().startsWith('service-account-'))
+      .map((account) => ({ ...account, permissions: [...account.permissions] }));
   }
 }

@@ -15,7 +15,7 @@ npm start
 
 畫面在 http://localhost:4200/apps/。本機的 http://127.0.0.1:3002 由 Core 提供，沿用原有 API 路徑。導覽和系統清單存在 PostgreSQL 的 `apps` schema。
 
-登入沿用公告的 Keycloak 回呼。只有 HRM 的在職 `admin` 可以進入應用管理及儲存設定，各系統的導覽列可照常讀取目錄。
+登入沿用公告的 Keycloak 回呼。HRM 負責建立及停用員工帳號，並同步帳號狀態與姓名、信箱到 Keycloak。平台權限頁只讀取啟用中的 Keycloak 帳號；平台權限及平台管理員資格由 Core 的 `apps` schema 獨立管理，不查 HRM 員工資料或 HRM 角色。帳號權限以 Keycloak 使用者 ID 綁定，不使用姓名或信箱授權。Keycloak service account 是 Core 查詢帳號目錄用的技術帳號，不列入一般帳號權限清單。
 
 部署時，在 `noah-apps` 設定 `CORE_URL` 指向 Core 的私有網址。
 
